@@ -3,17 +3,20 @@ import openpyxl
 
 
 class MRP:
-    def __init__(self, diretorio_planilhas):
+    def __init__(self, pasta_planilhas):
         """
-        Inicializa o objeto MRP com o diretório onde as planilhas estão localizadas.
+        Inicializa a classe MRP.
 
         Args:
-            diretorio_planilhas (str): Caminho para o diretório contendo as planilhas.
+            pasta_planilhas (str): O caminho para a pasta que contém as planilhas de dados.
         """
-        self.diretorio_planilhas = diretorio_planilhas
-        self.bom = {}  # Dicionário para armazenar as BOMs
-        self.estoque = {}  # Dicionário para armazenar os dados de estoque
-        self.estado = "Não Inicializado"
+        self.pasta_planilhas = pasta_planilhas
+        self.estoque = {}
+        self.boms = {}  # Inicializa o dicionário boms
+        self.ordens_planejamento = {}
+        self.ordens_controle = {}
+        self.planejamento = {}
+        self.fc_lt_esperados = {}
 
     def inicializar_dados(self):
         """
@@ -21,7 +24,7 @@ class MRP:
         """
 
         # 1. Ler todas as planilhas BOM no diretório
-        for arquivo in os.listdir(self.diretorio_planilhas):
+        for arquivo in os.listdir(self.pasta_planilhas):
             if arquivo.endswith("_BOM.xlsx"):
                 # 2. Extrair o código do produto do nome do arquivo
                 codigo_produto = arquivo.replace("_BOM.xlsx", "")
@@ -51,6 +54,67 @@ class MRP:
                         continue
 
         self.estado = "Inicializado"
+
+    def calcular_quantidades_producao_aquisicao(self, demanda):
+        """
+        Calcula as quantidades de produção e aquisição necessárias para atender à demanda.
+
+        Args:
+            demanda (dict): Um dicionário contendo a demanda para cada produto final.
+
+        Returns:
+            tuple: Um dicionário contendo as quantidades calculadas para cada material
+                   e um dicionário contendo as ordens de planejamento.
+        """
+        quantidades = {}
+        ordens_planejamento = {}
+
+        # Processa cada produto na demanda
+        for produto, quantidade_demandada in demanda.items():
+            # Inicializa as entradas para o produto
+            quantidades[produto] = {"quantidade_a_produzir": 0, "quantidade_a_adquirir": 0}
+            ordens_planejamento[produto] = {"Produção": 0, "Aquisição": 0, "Retirada de Estoque": 0}
+
+            # Obtém a BOM do produto
+            bom = self.boms.get(produto)
+
+            # Se o produto não tiver BOM, considera que não há componentes
+            if bom is None:
+                continue
+
+            # Calcula a necessidade do produto final
+            estoque_atual = self.estoque.get(produto, {}).get("Em Estoque", 0)
+            estoque_minimo = self.estoque.get(produto, {}).get("Mínimo", 0)
+            necessidade_produto = quantidade_demandada
+
+            quantidade_a_produzir = 0
+            if estoque_atual < estoque_minimo:
+                quantidade_a_produzir = estoque_minimo - estoque_atual
+
+            quantidade_a_produzir += demanda
+
+            quantidades[produto]["quantidade_a_produzir"] = quantidade_a_produzir
+            ordens_planejamento[produto]["Produção"] = quantidade_a_produzir
+
+            # Calcula a necessidade de cada componente
+            for componente, quantidade_na_bom in bom.items():
+                if componente == "Material":
+                    continue  # Ignora a linha de cabeçalho
+
+                quantidade_necessaria_componente = quantidade_demandada * float(quantidade_na_bom)
+                estoque_atual_componente = self.estoque.get(componente, {}).get("Em Estoque", 0)
+                estoque_minimo_componente = self.estoque.get(componente, {}).get("Mínimo", 0)
+                necessidade_componente = quantidade_necessaria_componente + estoque_minimo_componente
+
+                if estoque_atual_componente < necessidade_componente:
+                    quantidades[componente]["quantidade_a_adquirir"] = max(0,
+                                                                           necessidade_componente - estoque_atual_componente)
+                    ordens_planejamento[componente]["Aquisição"] = max(0,
+                                                                       necessidade_componente - estoque_atual_componente)
+                else:
+                    ordens_planejamento[componente]["Retirada de Estoque"] = quantidade_necessaria_componente
+
+        return quantidades, ordens_planejamento
 
     def planejar_producao(self, demanda):
         """
