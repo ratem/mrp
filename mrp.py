@@ -70,6 +70,7 @@ class MRP:
                 df_bom = df_bom[1:]
                 df_bom = df_bom.dropna(how='all')  # Adicionado dropna() para remover linhas completamente vazias
                 self.carregar_bom(codigo_produto, df_bom)
+        self.estado = "Inicializado"
 
     def calcular_quantidades_producao_aquisicao(self, demanda):
         """
@@ -210,6 +211,7 @@ class MRP:
                 leadtime = self.fc_lt_esperados[material]['Leadtime']
                 data_entrega = data_execucao + timedelta(days=leadtime)
                 self.planejamento[material][data_entrega.strftime('%Y-%m-%d')] = ordens['Aquisição']
+        self.estado = "Planejado"
         return self.planejamento
 
 
@@ -449,6 +451,124 @@ class MRP:
         print(f"Ordens de produção exportadas com sucesso para: {caminho_arquivo}")
         return caminho_arquivo
 
+    def iniciar_execucao(self):
+        """
+        Inicia a fase de execução e controle do MRP.
+
+        Returns:
+            bool: True se a execução foi iniciada com sucesso, None caso contrário.
+        """
+        if not hasattr(self, 'estado') or self.estado != "Planejado":
+            print("Erro: O planejamento ainda não foi realizado.")
+            return None
+
+        # Mudar o estado do MRP para Em Execução
+        self.estado = "Em Execução"
+
+        # Inicializar o dicionário de ordens_controle
+        self.ordens_controle = {}
+
+        # Copiar as ordens de planejamento para o dicionário de controle
+        for material, ordens in self.ordens_planejamento.items():
+            self.ordens_controle[material] = {
+                'Estoque Atual': self.estoque.get(material, {'em_estoque': 0})['em_estoque'],
+                'Status': 'Planejada'  # Status inicial: Planejada
+            }
+
+            # Copiar todas as chaves existentes em ordens para ordens_controle
+            if 'Produção' in ordens:
+                self.ordens_controle[material]['Produção'] = ordens['Produção']
+
+            if 'Aquisição' in ordens:
+                self.ordens_controle[material]['Aquisição'] = ordens['Aquisição']
+
+        print("Execução iniciada com sucesso. Estado atual: Em Execução")
+        return True
+
+    def atualizar_status_ordem(self, material, novo_status):
+        """
+        Atualiza o status de uma ordem específica.
+
+        Args:
+            material (str): Código do material cuja ordem será atualizada.
+            novo_status (str): Novo status da ordem ('Planejada', 'Executada' ou 'Pronta').
+
+        Returns:
+            bool: True se o status foi atualizado com sucesso, False caso contrário.
+        """
+        if not hasattr(self, 'estado') or self.estado != "Em Execução":
+            print("Erro: O MRP não está em execução.")
+            return False
+
+        if material not in self.ordens_controle:
+            print(f"Erro: Material '{material}' não encontrado nas ordens de controle.")
+            return False
+
+        # Verificar se o novo status é válido
+        status_validos = ['Planejada', 'Executada', 'Pronta']
+        if novo_status not in status_validos:
+            print(f"Erro: Status '{novo_status}' inválido. Use um dos seguintes: {', '.join(status_validos)}")
+            return False
+
+        # Atualizar o status
+        self.ordens_controle[material]['Status'] = novo_status
+        print(f"Status da ordem para '{material}' atualizado para '{novo_status}'.")
+
+        # Se o status for 'Pronta', atualizar o estoque
+        if novo_status == 'Pronta':
+            # Atualizar o estoque com base no tipo de ordem (Produção ou Aquisição)
+            if 'Produção' in self.ordens_controle[material]:
+                quantidade = self.ordens_controle[material]['Produção']
+                self.estoque[material]['em_estoque'] += quantidade
+                print(f"Estoque de '{material}' atualizado: +{quantidade} unidades (Produção)")
+
+            if 'Aquisição' in self.ordens_controle[material]:
+                quantidade = self.ordens_controle[material]['Aquisição']
+                self.estoque[material]['em_estoque'] += quantidade
+                print(f"Estoque de '{material}' atualizado: +{quantidade} unidades (Aquisição)")
+
+        return True
+
+    def listar_ordens_controle(self):
+        """
+        Lista todas as ordens de controle no console.
+
+        Returns:
+            bool: True se as ordens foram listadas com sucesso, False caso contrário.
+        """
+        if not hasattr(self, 'ordens_controle') or not self.ordens_controle:
+            print("Erro: Não há ordens de controle para listar.")
+            return False
+
+        from tabulate import tabulate
+
+        # Preparar os dados para a tabela
+        tabela = []
+        cabecalho = ["Material", "Estoque Atual", "Retirada de Estoque", "Produção", "Aquisição", "Status"]
+
+        for material, dados in self.ordens_controle.items():
+            estoque_atual = dados['Estoque Atual']
+            status = dados['Status']
+
+            # Calcular a retirada de estoque
+            producao = dados.get('Produção', 0)
+            aquisicao = dados.get('Aquisição', 0)
+            retirada_estoque = min(estoque_atual, producao + aquisicao)
+
+            linha = [
+                material,
+                estoque_atual,
+                retirada_estoque if retirada_estoque > 0 else "",
+                producao if producao > 0 else "",
+                aquisicao if aquisicao > 0 else "",
+                status
+            ]
+
+            tabela.append(linha)
+
+        # Imprimir a tabela
+        print(tabulate(tabela, headers=cabecalho, tablefmt="grid"))
+        return True
 
     def planejar_producao(self, demanda):
         """
@@ -466,7 +586,7 @@ class MRP:
         # Calcula leadtimes
         self.calcular_fc_lt_esperados()
         # Monta o quadro de planejamento
-        quadro_planejamento = self.montar_quadro_planejamento()
+        self.montar_quadro_planejamento()
         self.estado = "Planejado"
 
     def executar_controle(self, cotações):

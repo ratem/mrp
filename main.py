@@ -12,7 +12,9 @@ if __name__ == '__main__':
     # Calcula leadtimes
     mrp.calcular_fc_lt_esperados()
     # Monta o quadro de planejamento
-    quadro_planejamento = mrp.montar_quadro_planejamento()
-    mrp.imprimir_quadro_planejamento()
-    mrp.exportar_quadro_planejamento("quadro.xlsx")
-    mrp.exportar_ordens_producao("ordens.xlsx")
+    mrp.montar_quadro_planejamento()
+    #mrp.imprimir_quadro_planejamento()
+    #mrp.exportar_quadro_planejamento("quadro.xlsx")
+    #mrp.exportar_ordens_producao("ordens.xlsx")
+    mrp.iniciar_execucao()
+    mrp.listar_ordens_controle()

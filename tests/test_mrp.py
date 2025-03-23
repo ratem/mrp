@@ -320,7 +320,107 @@ class TestMRPInicializacao(unittest.TestCase):
         data_entrega_etf_str = data_entrega_etf.strftime('%Y-%m-%d')
         self.assertIn(data_entrega_etf_str, quadro_planejamento["ETF"])
         self.assertEqual(quadro_planejamento["ETF"][data_entrega_etf_str], 105)  # Quantidade de ETF
-        self.mrp.imprimir_quadro_planejamento()
+
+    def test_iniciar_execucao(self):
+        """
+        Testa se a execução é iniciada corretamente.
+        """
+        # Define a demanda
+        demanda = {"ETI": 100, "ETF": 100}
+        # Inicializa os dados do MRP
+        self.mrp.inicializar_dados()
+        # Realiza o planejamento
+        self.mrp.planejar_producao(demanda)
+        self.assertEqual(self.mrp.estado, "Planejado")
+        resultado = self.mrp.iniciar_execucao()
+        # Verifica se a execução foi iniciada com sucesso
+        self.assertTrue(resultado)
+        # Verifica se o estado mudou para Em Execução
+        self.assertEqual(self.mrp.estado, "Em Execução")
+        # Verifica se a execução foi iniciada com sucesso
+        self.assertTrue(resultado)
+        # Verifica se o estado mudou para Em Execução
+        self.assertEqual(self.mrp.estado, "Em Execução")
+        # Verifica se o dicionário ordens_controle foi criado
+        self.assertIsNotNone(self.mrp.ordens_controle)
+        # Verifica se todas as ordens de planejamento foram copiadas para ordens_controle
+        for material in self.mrp.ordens_planejamento:
+            self.assertIn(material, self.mrp.ordens_controle)
+            # Verifica se o status inicial é 'Planejada'
+            self.assertEqual(self.mrp.ordens_controle[material]['Status'], 'Planejada')
+            # Verifica se o estoque atual foi copiado corretamente
+            estoque_esperado = self.mrp.estoque.get(material, {'em_estoque': 0})['em_estoque']
+            self.assertEqual(self.mrp.ordens_controle[material]['Estoque Atual'], estoque_esperado)
+            # Verifica se as ordens de produção foram copiadas corretamente
+            if 'Produção' in self.mrp.ordens_planejamento[material]:
+                self.assertIn('Produção', self.mrp.ordens_controle[material])
+                self.assertEqual(
+                    self.mrp.ordens_controle[material]['Produção'],
+                    self.mrp.ordens_planejamento[material]['Produção']
+                )
+            # Verifica se as ordens de aquisição foram copiadas corretamente
+            if 'Aquisição' in self.mrp.ordens_planejamento[material]:
+                self.assertEqual(
+                    self.mrp.ordens_controle[material].get('Aquisição'),
+                    self.mrp.ordens_planejamento[material]['Aquisição']
+                )
+
+
+    def test_atualizar_status_ordem(self):
+        """
+        Testa se o status de uma ordem é atualizado corretamente.
+        A sequência de eventos no teste deve ser:
+                Inicialização da execução: O MRP mudou seu estado para "Em Execução" com sucesso.
+                Atualização para 'Executada': O status da ordem para o material 'JOKER' foi atualizado para 'Executada' com sucesso.
+                Atualização para 'Pronta': O status da ordem para 'JOKER' foi atualizado para 'Pronta' com sucesso, o que desencadeou a atualização do estoque.
+                Atualização do estoque: Como 'JOKER' não tinha ordem de produção (apenas aquisição), o sistema corretamente adicionou 0 unidades de produção e 205 unidades de aquisição ao estoque.
+                Teste de casos inválidos: O sistema rejeitou corretamente:
+                Um status inválido ("Status Inválido")
+                Um material inexistente ("Material Inexistente")
+                Uma atualização quando o MRP não estava em execução (após mudar o estado)
+                Nova inicialização: No final, o teste parece ter iniciado a execução novamente.
+        """
+        # Define a demanda
+        demanda = {"ETI": 100, "ETF": 100}
+        # Inicializa os dados do MRP
+        self.mrp.inicializar_dados()
+        # Define o estado como Inicializado para poder planejar
+        self.mrp.estado = "Inicializado"
+        # Realiza o planejamento
+        self.mrp.planejar_producao(demanda)
+        # Inicia a execução
+        self.mrp.iniciar_execucao()
+        # Verifica se o estado mudou para Em Execução
+        self.assertEqual(self.mrp.estado, "Em Execução")
+        # Seleciona um material para testar (JOKER)
+        material = "JOKER"
+        # Guarda o estoque inicial
+        estoque_inicial = self.mrp.estoque[material]['em_estoque']
+        # Verifica se o status inicial é 'Planejada'
+        self.assertEqual(self.mrp.ordens_controle[material]['Status'], 'Planejada')
+        # Atualiza o status para 'Executada'
+        resultado = self.mrp.atualizar_status_ordem(material, 'Executada')
+        self.assertTrue(resultado)
+        self.assertEqual(self.mrp.ordens_controle[material]['Status'], 'Executada')
+        # Verifica que o estoque não mudou
+        self.assertEqual(self.mrp.estoque[material]['em_estoque'], estoque_inicial)
+        # Atualiza o status para 'Pronta'
+        resultado = self.mrp.atualizar_status_ordem(material, 'Pronta')
+        self.assertTrue(resultado)
+        self.assertEqual(self.mrp.ordens_controle[material]['Status'], 'Pronta')
+        # Verifica que o estoque foi atualizado
+        quantidade_aquisicao = self.mrp.ordens_controle[material]['Aquisição']
+        self.assertEqual(self.mrp.estoque[material]['em_estoque'], estoque_inicial + quantidade_aquisicao)
+        # Testa com status inválido
+        resultado = self.mrp.atualizar_status_ordem(material, 'Status Inválido')
+        self.assertFalse(resultado)
+        # Testa com material inexistente
+        resultado = self.mrp.atualizar_status_ordem('Material Inexistente', 'Pronta')
+        self.assertFalse(resultado)
+        # Testa quando o MRP não está em execução
+        self.mrp.estado = "Planejado"
+        resultado = self.mrp.atualizar_status_ordem(material, 'Pronta')
+        self.assertFalse(resultado)
 
 
 if __name__ == '__main__':
