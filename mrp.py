@@ -1,6 +1,7 @@
 import pandas as pd
 import os
 from openpyxl import load_workbook
+from datetime import datetime, timedelta
 
 class MRP:
     """
@@ -15,6 +16,7 @@ class MRP:
         self.estoque = {}
         self.boms = {}  # Bills of Materials
         self.fc_lt_esperados = {}
+        self.planejamento = {}
 
 
     def carregar_estoque(self, df_estoque):
@@ -181,77 +183,105 @@ class MRP:
         return self.fc_lt_esperados
 
 
-def planejar_producao(self, demanda):
-    """
-    Realiza o planejamento da produção com base na demanda e nos dados inicializados.
-
-    Args:
-        demanda (dict): Dicionário contendo os produtos finais e suas respectivas quantidades demandadas.
-                        Exemplo: {"ETF": 10, "ETI": 15}
+    def montar_quadro_planejamento(self, data_execucao=None):
         """
-    if self.estado != "Inicializado":
-        print("Erro: Os dados ainda não foram inicializados.")
-        return
+        Monta o quadro de planejamento com as ordens de produção e aquisição.
 
-    self.quantidades = {}
-    self.ordens_planejamento = {}
-    self.fc_lt_esperados = {}
-    self.planejamento = {}
+        Args:
+            data_execucao (datetime, opcional): Data de execução do planejamento.
+                                               Se não fornecida, usa a data atual.
 
-    for produto, quantidade_demandada in demanda.items():
-        # 1) Calcular a quantidade do produto final multiplicada pelas quantidades obtidas na BOM
-        if produto not in self.bom:
-            print(f"Aviso: Produto {produto} não encontrado na BOM. Ignorando.")
-            continue
+        Returns:
+            dict: Dicionário representando o quadro de planejamento.
+        """
+        if data_execucao is None:
+            data_execucao = datetime.now()
 
-        self.quantidades[produto] = self.quantidades.get(produto, 0) + quantidade_demandada
+        for material, ordens in self.ordens_planejamento.items():
+            if material not in self.planejamento:
+                self.planejamento[material] = {"Estoque Atual": self.estoque.get(material, {'em_estoque': 0})['em_estoque']}
+            if 'Produção' in ordens and ordens['Produção'] > 0:
+                leadtime = self.fc_lt_esperados[material]['Leadtime']
+                data_entrega = data_execucao + timedelta(days=leadtime)
+                self.planejamento[material][data_entrega.strftime('%Y-%m-%d')] = ordens['Produção']
+            if 'Aquisição' in ordens and ordens['Aquisição'] > 0:
+                leadtime = self.fc_lt_esperados[material]['Leadtime']
+                data_entrega = data_execucao + timedelta(days=leadtime)
+                self.planejamento[material][data_entrega.strftime('%Y-%m-%d')] = ordens['Aquisição']
+        return self.planejamento
 
-        for componente, quantidade_por_produto in self.bom[produto].items():
-            quantidade_necessaria = quantidade_demandada * quantidade_por_produto
-            self.quantidades[componente] = self.quantidades.get(componente, 0) + quantidade_necessaria
 
-        # 2) Verificar no estoque quando de cada material (produto e componentes) está registrado como disponível no estoque.
-        # 3) Lógica de produção e aquisição (considerando o estoque mínimo)
-        # 4) Salvar as quantidades num dicionário denominado quantidades
-        # 5) Um segundo dicionário, denominado ordens_planejamento
-        # 6) Um terceiro dicionário, denominado fc_lt_esperados
-        # 7) Um quarto dicionário, denominado planejamento
-        # 8) Após finalizado, mudar o estado do MRP para Planejado.
-        # Implementar a lógica de planejamento conforme os requisitos
+    def planejar_producao(self, demanda):
+        """
+        Realiza o planejamento da produção com base na demanda e nos dados inicializados.
 
-    self.estado = "Planejado"
+        Args:
+            demanda (dict): Dicionário contendo os produtos finais e suas respectivas quantidades demandadas.
+                            Exemplo: {"ETF": 10, "ETI": 15}
+            """
+        if self.estado != "Inicializado":
+            print("Erro: Os dados ainda não foram inicializados.")
+            return
 
-def executar_controle(self, cotações):
-    """
-    Executa e controla as ordens de produção e aquisição.
+        self.quantidades = {}
+        self.ordens_planejamento = {}
+        self.fc_lt_esperados = {}
+        self.planejamento = {}
 
-    Args:
-        cotações (dict): Dicionário contendo os valores atualizados dos materiais.
-    """
-    if self.estado != "Planejado":
-        print("Erro: O planejamento ainda não foi realizado.")
-        return
+        for produto, quantidade_demandada in demanda.items():
+            # 1) Calcular a quantidade do produto final multiplicada pelas quantidades obtidas na BOM
+            if produto not in self.bom:
+                print(f"Aviso: Produto {produto} não encontrado na BOM. Ignorando.")
+                continue
 
-    # 1) Iniciada a execução, mudar o estado do MRP para Em Execução.
-    # 2) O dicionário ordens_planejamento deve ser copiado para o dicionário ordens_controle
-    # 3) Os valores médios são substituídos, quando houverem, pelos valores obtidos das cotações
-    # 4) Deve possuir funcionalidade de listar em tela ou exportar para planilhas as ordens.
-    # 5) Deve possuir funcionalidade de editar o dicionário de ordens
-    # 6) Após o ciclo de produção ser fechado, o MRP deve mudar seu estado para Encerrado.
-    # Implementar a lógica de execução e controle conforme os requisitos
+            self.quantidades[produto] = self.quantidades.get(produto, 0) + quantidade_demandada
 
-    self.estado = "Em Execução"
+            for componente, quantidade_por_produto in self.bom[produto].items():
+                quantidade_necessaria = quantidade_demandada * quantidade_por_produto
+                self.quantidades[componente] = self.quantidades.get(componente, 0) + quantidade_necessaria
 
-def analisar_resultados(self):
-    """
-    Analisa os resultados do ciclo de produção.
-    """
-    if self.estado != "Encerrado":
-        print("Erro: O ciclo de produção ainda não foi encerrado.")
-        return
+            # 2) Verificar no estoque quando de cada material (produto e componentes) está registrado como disponível no estoque.
+            # 3) Lógica de produção e aquisição (considerando o estoque mínimo)
+            # 4) Salvar as quantidades num dicionário denominado quantidades
+            # 5) Um segundo dicionário, denominado ordens_planejamento
+            # 6) Um terceiro dicionário, denominado fc_lt_esperados
+            # 7) Um quarto dicionário, denominado planejamento
+            # 8) Após finalizado, mudar o estado do MRP para Planejado.
+            # Implementar a lógica de planejamento conforme os requisitos
 
-    # 1) Ser capaz de ler N planilhas de MRP e mostrar insights como alterações em ordens de produção, atrasos, variação de custos, flutuação de estoque etc.
-    # 2) A análise é feita sobre ciclos encerrados ou em execução.
-    # 3) É interessante para o usuário manter na mesma pasta versões das planilhas, a medida que as ordens vão sendo executadas, para que seja possível ter um histórico da evolução da execução e aprimorar valores médios empregados, bem como detectar gargalos e outros problemas.
-    # Implementar a lógica de análise conforme os requisitos
-    pass
+        self.estado = "Planejado"
+
+    def executar_controle(self, cotações):
+        """
+        Executa e controla as ordens de produção e aquisição.
+
+        Args:
+            cotações (dict): Dicionário contendo os valores atualizados dos materiais.
+        """
+        if self.estado != "Planejado":
+            print("Erro: O planejamento ainda não foi realizado.")
+            return
+
+        # 1) Iniciada a execução, mudar o estado do MRP para Em Execução.
+        # 2) O dicionário ordens_planejamento deve ser copiado para o dicionário ordens_controle
+        # 3) Os valores médios são substituídos, quando houverem, pelos valores obtidos das cotações
+        # 4) Deve possuir funcionalidade de listar em tela ou exportar para planilhas as ordens.
+        # 5) Deve possuir funcionalidade de editar o dicionário de ordens
+        # 6) Após o ciclo de produção ser fechado, o MRP deve mudar seu estado para Encerrado.
+        # Implementar a lógica de execução e controle conforme os requisitos
+
+        self.estado = "Em Execução"
+
+    def analisar_resultados(self):
+        """
+        Analisa os resultados do ciclo de produção.
+        """
+        if self.estado != "Encerrado":
+            print("Erro: O ciclo de produção ainda não foi encerrado.")
+            return
+
+        # 1) Ser capaz de ler N planilhas de MRP e mostrar insights como alterações em ordens de produção, atrasos, variação de custos, flutuação de estoque etc.
+        # 2) A análise é feita sobre ciclos encerrados ou em execução.
+        # 3) É interessante para o usuário manter na mesma pasta versões das planilhas, a medida que as ordens vão sendo executadas, para que seja possível ter um histórico da evolução da execução e aprimorar valores médios empregados, bem como detectar gargalos e outros problemas.
+        # Implementar a lógica de análise conforme os requisitos
+        pass

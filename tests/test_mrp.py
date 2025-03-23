@@ -276,6 +276,51 @@ class TestMRPInicializacao(unittest.TestCase):
         self.assertEqual(fc_lt_esperados["D-SUB25 macho"]["Leadtime"], 20)
         self.assertAlmostEqual(fc_lt_esperados["D-SUB25 macho"]["Custo"], 7548)
 
+    def test_montar_quadro_planejamento(self):
+        """
+        Testa o método montar_quadro_planejamento.
+        """
+        from datetime import datetime, timedelta
+
+        # Define a demanda
+        demanda = {"ETI": 100, "ETF": 100}
+
+        # Inicializa os dados do MRP
+        self.mrp.inicializar_dados()
+
+        # Calcula as quantidades de produção e aquisição
+        self.mrp.calcular_quantidades_producao_aquisicao(demanda)
+
+        # Calcula leadtimes
+        self.mrp.calcular_fc_lt_esperados()
+
+        # Monta o quadro de planejamento
+        quadro_planejamento = self.mrp.montar_quadro_planejamento()
+
+        # Verificações
+        # Verifica se o quadro de planejamento foi criado corretamente
+        self.assertIn("ETI", quadro_planejamento)
+        self.assertIn("ETF", quadro_planejamento)
+        self.assertIn("JOKER", quadro_planejamento)
+
+        # Verifica se os valores estão corretos (ajuste conforme necessário)
+        self.assertEqual(quadro_planejamento["ETI"]["Estoque Atual"], 5)
+        self.assertEqual(quadro_planejamento["ETF"]["Estoque Atual"], 0)
+        self.assertEqual(quadro_planejamento["JOKER"]["Estoque Atual"], 10)
+
+        # Verifica se as datas de entrega foram calculadas corretamente
+        # Lead time de ETI: 5 (produto) + max(10, 11, 14, 16, 17, 18, 19, 20)
+        data_entrega_eti = datetime.now() + timedelta(days=5 + 20)
+        data_entrega_eti_str = data_entrega_eti.strftime('%Y-%m-%d')
+        self.assertIn(data_entrega_eti_str, quadro_planejamento["ETI"])
+        self.assertEqual(quadro_planejamento["ETI"][data_entrega_eti_str], 100)  # Quantidade de ETI
+
+        # Lead time de ETF: 5 (produto) + max(10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20) = 20
+        data_entrega_etf = datetime.now() + timedelta(days=5 + 20)
+        data_entrega_etf_str = data_entrega_etf.strftime('%Y-%m-%d')
+        self.assertIn(data_entrega_etf_str, quadro_planejamento["ETF"])
+        self.assertEqual(quadro_planejamento["ETF"][data_entrega_etf_str], 105)  # Quantidade de ETF
+
 
 if __name__ == '__main__':
     unittest.main()
