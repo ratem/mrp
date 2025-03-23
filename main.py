@@ -14,3 +14,5 @@ if __name__ == '__main__':
     # Monta o quadro de planejamento
     quadro_planejamento = mrp.montar_quadro_planejamento()
     mrp.imprimir_quadro_planejamento()
+    mrp.exportar_quadro_planejamento("quadro.xlsx")
+    mrp.exportar_ordens_producao("ordens.xlsx")

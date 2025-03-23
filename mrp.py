@@ -242,6 +242,214 @@ class MRP:
         # Imprime a tabela no console
         print(tabulate(tabela, headers=cabecalho, tablefmt="grid"))
 
+    def exportar_quadro_planejamento(self, nome_arquivo):
+        """
+        Exporta o quadro de planejamento para uma planilha Excel usando openpyxl.
+
+        Args:
+            nome_arquivo (str): Nome do arquivo Excel a ser criado.
+
+        Returns:
+            str: Caminho completo do arquivo Excel criado.
+        """
+        if not self.planejamento:
+            print("Erro: O quadro de planejamento ainda não foi gerado.")
+            return None
+
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, Alignment, Border, Side
+
+        # Criar um novo workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Planejamento"
+
+        # Coletar todas as datas de entrega únicas
+        datas_entrega = set()
+        for material, dados in self.planejamento.items():
+            for chave in dados.keys():
+                if chave != "Estoque Atual":
+                    datas_entrega.add(chave)
+
+        # Ordenar as datas
+        datas_ordenadas = sorted(list(datas_entrega))
+
+        # Criar cabeçalhos
+        cabecalhos = ["Material", "Estoque Atual"] + datas_ordenadas
+        for col_idx, header in enumerate(cabecalhos, 1):
+            ws.cell(row=1, column=col_idx, value=header)
+
+        # Preencher os dados
+        row_idx = 2
+        for material, dados in self.planejamento.items():
+            ws.cell(row=row_idx, column=1, value=material)
+            ws.cell(row=row_idx, column=2, value=dados["Estoque Atual"])
+
+            # Preencher as datas para este material
+            for col_idx, data in enumerate(datas_ordenadas, 3):
+                if data in dados:
+                    ws.cell(row=row_idx, column=col_idx, value=dados[data])
+
+            row_idx += 1
+
+        # Aplicar formatação
+        # Definir estilo para cabeçalhos
+        header_font = Font(bold=True)
+        header_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+
+        # Aplicar estilo aos cabeçalhos
+        for col_idx in range(1, len(cabecalhos) + 1):
+            cell = ws.cell(row=1, column=col_idx)
+            cell.font = header_font
+            cell.alignment = header_alignment
+            cell.border = border
+
+            # Ajustar largura da coluna
+            if col_idx == 1:
+                ws.column_dimensions[cell.column_letter].width = 20  # Material
+            elif col_idx == 2:
+                ws.column_dimensions[cell.column_letter].width = 15  # Estoque Atual
+            else:
+                ws.column_dimensions[cell.column_letter].width = 15  # Datas
+
+        # Congelar a primeira linha e coluna
+        ws.freeze_panes = 'B2'
+
+        # Definir o caminho completo do arquivo
+        caminho_arquivo = os.path.join(self.pasta_arquivos, nome_arquivo)
+
+        # Salvar o arquivo
+        wb.save(caminho_arquivo)
+
+        print(f"Quadro de planejamento exportado com sucesso para: {caminho_arquivo}")
+        return caminho_arquivo
+
+    def exportar_ordens_producao(self, nome_arquivo):
+        """
+        Exporta as ordens de produção e aquisição para uma planilha Excel.
+
+        Args:
+            nome_arquivo (str): Nome do arquivo Excel a ser criado.
+
+        Returns:
+            str: Caminho completo do arquivo Excel criado.
+        """
+        if not hasattr(self, 'ordens_planejamento') or not self.ordens_planejamento:
+            print("Erro: As ordens de produção ainda não foram geradas.")
+            return None
+
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+
+        # Criar um novo workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Ordens"
+
+        # Definir cabeçalhos
+        cabecalhos = [
+            "Material",
+            "Retirada de Estoque",
+            "Produção",
+            "Aquisição",
+            "Custo Total Estimado",
+            "Leadtime Total Estimado",
+            "Custo Total Real",
+            "Leadtime Total Real"
+        ]
+
+        # Adicionar cabeçalhos
+        for col_idx, header in enumerate(cabecalhos, 1):
+            ws.cell(row=1, column=col_idx, value=header)
+
+        # Preencher os dados
+        row_idx = 2
+        for material, ordens in self.ordens_planejamento.items():
+            ws.cell(row=row_idx, column=1, value=material)
+
+            # Calcular a retirada de estoque (se houver)
+            estoque_atual = self.estoque.get(material, {'em_estoque': 0})['em_estoque']
+
+            # Produção (apenas para produtos finais)
+            producao = ordens.get('Produção', 0)
+            ws.cell(row=row_idx, column=3, value=producao if producao > 0 else "")
+
+            # Aquisição (apenas para componentes)
+            aquisicao = ordens.get('Aquisição', 0)
+            ws.cell(row=row_idx, column=4, value=aquisicao if aquisicao > 0 else "")
+
+            # Retirada de estoque
+            retirada_estoque = min(estoque_atual, producao + aquisicao)
+            ws.cell(row=row_idx, column=2, value=retirada_estoque if retirada_estoque > 0 else "")
+
+            # Custo e Leadtime estimados
+            if material in self.fc_lt_esperados:
+                custo = self.fc_lt_esperados[material].get('Custo', 0)
+                leadtime = self.fc_lt_esperados[material].get('Leadtime', 0)
+                ws.cell(row=row_idx, column=5, value=custo)
+                ws.cell(row=row_idx, column=6, value=leadtime)
+
+            # Custo e Leadtime reais (inicialmente vazios)
+            ws.cell(row=row_idx, column=7, value="")
+            ws.cell(row=row_idx, column=8, value="")
+
+            row_idx += 1
+
+        # Aplicar formatação
+        # Definir estilos
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="4F81BD", end_color="4F81BD", fill_type="solid")
+        header_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+
+        # Aplicar estilo aos cabeçalhos
+        for col_idx in range(1, len(cabecalhos) + 1):
+            cell = ws.cell(row=1, column=col_idx)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_alignment
+            cell.border = border
+
+            # Ajustar largura da coluna
+            ws.column_dimensions[cell.column_letter].width = 18
+
+        # Ajustar a primeira coluna para ser mais larga (Material)
+        ws.column_dimensions['A'].width = 25
+
+        # Aplicar bordas a todas as células com dados
+        for row in range(2, row_idx):
+            for col in range(1, len(cabecalhos) + 1):
+                cell = ws.cell(row=row, column=col)
+                cell.border = border
+
+                # Alinhar valores numéricos à direita
+                if col > 1:
+                    cell.alignment = Alignment(horizontal='right')
+
+        # Congelar a primeira linha e coluna
+        ws.freeze_panes = 'B2'
+
+        # Definir o caminho completo do arquivo
+        caminho_arquivo = os.path.join(self.pasta_arquivos, nome_arquivo)
+
+        # Salvar o arquivo
+        wb.save(caminho_arquivo)
+
+        print(f"Ordens de produção exportadas com sucesso para: {caminho_arquivo}")
+        return caminho_arquivo
+
+
     def planejar_producao(self, demanda):
         """
         Realiza o planejamento da produção com base na demanda e nos dados inicializados.
