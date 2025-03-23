@@ -13,8 +13,9 @@ class MRP:
         """
         self.pasta_arquivos = pasta_arquivos
         self.estoque = {}
-        self.boms = {}  # Inicializa o atributo boms como um dicionário
-        self.ordens_planejamento = {}
+        self.boms = {}  # Bills of Materials
+        self.fc_lt_esperados = {}
+
 
     def carregar_estoque(self, df_estoque):
         """
@@ -126,6 +127,59 @@ class MRP:
             self.ordens_planejamento[componente]['Aquisição'] = quantidade_a_adquirir
 
         return quantidades, self.ordens_planejamento
+
+
+    def calcular_fc_lt_esperados(self):
+        """
+        Calcula o fluxo de caixa esperado e os lead times esperados para as ordens de produção e aquisição.
+
+        Returns:
+            dict: Dicionário contendo o fluxo de caixa esperado e os lead times esperados.
+        """
+        self.fc_lt_esperados = {}  # Inicializa o dicionário aqui
+
+        for material, ordens in self.ordens_planejamento.items():  # Usar self.ordens_planejamento
+            self.fc_lt_esperados[material] = {}
+
+            # Lógica para Produtos (Produção)
+            if 'Produção' in ordens and ordens['Produção'] > 0:
+                # Aqui você precisará implementar a lógica para calcular o lead time do produto final.
+                # Conforme a descrição, é o maior lead-time entre seus componentes a adquirir somado ao seu próprio lead-time de produção.
+                # Por enquanto, vamos usar um valor padrão para o lead time do produto.
+                # Encontrar o maior lead time dos componentes
+                maior_leadtime_componente = 0
+                if material in self.boms:
+                    for componente in self.boms[material]:
+                        leadtime_componente = self.estoque.get(componente, {'leadtime_medio_lote': 0})[
+                            'leadtime_medio_lote']
+                        maior_leadtime_componente = max(maior_leadtime_componente, leadtime_componente)
+                # Somar o lead time do produto
+                leadtime_produto = self.estoque.get(material, {'leadtime_medio_lote': 0})['leadtime_medio_lote']
+                self.fc_lt_esperados[material]['Leadtime'] = leadtime_produto + maior_leadtime_componente
+
+                # Calcular o custo total de produção
+                custo_unitario = self.estoque.get(material, {'custo_medio_unitario': 0})['custo_medio_unitario']
+                imposto_unitario = self.estoque.get(material, {'imposto_medio_unitario': 0})['imposto_medio_unitario']
+                # Frete não se aplica à produção, então não o incluímos.
+                self.fc_lt_esperados[material]['Custo'] = ordens['Produção'] * (
+                            custo_unitario + imposto_unitario)
+
+            # Lógica para Componentes (Aquisição)
+            if 'Aquisição' in ordens and ordens['Aquisição'] > 0:
+                # Lead time do componente é copiado do dicionário de estoque
+                self.fc_lt_esperados[material]['Leadtime'] = self.estoque.get(material,
+                                                                              {'leadtime_medio_lote': 0})[
+                    'leadtime_medio_lote']
+
+                # Calcular o custo total de aquisição
+                custo_unitario = self.estoque.get(material, {'custo_medio_unitario': 0})['custo_medio_unitario']
+                imposto_unitario = self.estoque.get(material, {'imposto_medio_unitario': 0})['imposto_medio_unitario']
+                frete_lote = self.estoque.get(material, {'frete_medio_lote': 0})['frete_medio_lote']
+                self.fc_lt_esperados[material]['Custo'] = ordens['Aquisição'] * (
+                            custo_unitario + imposto_unitario) + frete_lote
+
+        return self.fc_lt_esperados
+
 
 def planejar_producao(self, demanda):
     """

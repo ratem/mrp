@@ -187,5 +187,95 @@ class TestMRPInicializacao(unittest.TestCase):
         self.assertEqual(quantidades["Chip Internet Móvel"]["quantidade_a_adquirir"], 105)
         self.assertEqual(ordens_planejamento["Chip Internet Móvel"]["Aquisição"], 105)
 
+    def test_calcular_fc_lt_esperados(self):
+        """
+        Testa o cálculo do fluxo de caixa e lead times esperados.
+        """
+        # Define a demanda
+        demanda = {"ETI": 100, "ETF": 100}
+
+        # Inicializa os dados do MRP
+        self.mrp.inicializar_dados()
+
+        # Calcula as quantidades de produção e aquisição
+        self.mrp.calcular_quantidades_producao_aquisicao(
+            demanda)  # Garante que self.ordens_planejamento esteja preenchido
+        fc_lt_esperados = self.mrp.calcular_fc_lt_esperados()
+
+        # Verificações
+        # Produto ETI
+        self.assertIn("ETI", fc_lt_esperados)
+        self.assertIn("Leadtime", fc_lt_esperados["ETI"])
+        self.assertIn("Custo", fc_lt_esperados["ETI"])
+        self.assertEqual(fc_lt_esperados["ETI"]["Leadtime"], 25)
+        self.assertAlmostEqual(fc_lt_esperados["ETI"]["Custo"], 8000)  # Verifique o custo
+
+        # Produto ETF
+        self.assertIn("ETF", fc_lt_esperados)
+        self.assertIn("Leadtime", fc_lt_esperados["ETF"])
+        self.assertIn("Custo", fc_lt_esperados["ETF"])
+        self.assertEqual(fc_lt_esperados["ETF"]["Leadtime"], 25)
+        self.assertAlmostEqual(fc_lt_esperados["ETF"]["Custo"], 10500)
+
+        # Componente JOKER
+        self.assertIn("JOKER", fc_lt_esperados)
+        self.assertIn("Leadtime", fc_lt_esperados["JOKER"])
+        self.assertIn("Custo", fc_lt_esperados["JOKER"])
+        self.assertEqual(fc_lt_esperados["JOKER"]["Leadtime"], 10)
+        self.assertAlmostEqual(fc_lt_esperados["JOKER"]["Custo"], 2260)
+
+        # Componente DAQ
+        self.assertIn("DAQ", fc_lt_esperados)
+        self.assertIn("Leadtime", fc_lt_esperados["DAQ"])
+        self.assertIn("Custo", fc_lt_esperados["DAQ"])
+        self.assertEqual(fc_lt_esperados["DAQ"]["Leadtime"], 11)
+        self.assertAlmostEqual(fc_lt_esperados["DAQ"]["Custo"], 2671)
+
+        # Componente Módulo 3G/4G
+        self.assertIn("Módulo 3G/4G", fc_lt_esperados)
+        self.assertEqual(fc_lt_esperados["Módulo 3G/4G"]["Leadtime"], 12)
+        self.assertAlmostEqual(fc_lt_esperados["Módulo 3G/4G"]["Custo"], 1582)
+
+        # Componente Chip Internet Móvel
+        self.assertIn("Chip Internet Móvel", fc_lt_esperados)
+        self.assertEqual(fc_lt_esperados["Chip Internet Móvel"]["Leadtime"], 13)
+        self.assertAlmostEqual(fc_lt_esperados["Chip Internet Móvel"]["Custo"], 1793)
+
+        # Componente SX1276 (LoRa)
+        self.assertIn("SX1276 (LoRa)", fc_lt_esperados)
+        self.assertEqual(fc_lt_esperados["SX1276 (LoRa)"]["Leadtime"], 14)
+        self.assertAlmostEqual(fc_lt_esperados["SX1276 (LoRa)"]["Custo"], 3904)
+
+        # Componente ADS1115
+        self.assertIn("ADS1115", fc_lt_esperados)
+        self.assertEqual(fc_lt_esperados["ADS1115"]["Leadtime"], 15)
+        self.assertAlmostEqual(fc_lt_esperados["ADS1115"]["Custo"], 8515)
+
+        # Componente Conector DB25 fêmea
+        self.assertIn("Conector DB25 fêmea", fc_lt_esperados)
+        self.assertEqual(fc_lt_esperados["Conector DB25 fêmea"]["Leadtime"], 16)
+        self.assertAlmostEqual(fc_lt_esperados["Conector DB25 fêmea"]["Custo"], 4266)
+
+        # Componente Soquetes 2x6p
+        self.assertIn("Soquetes 2x6p", fc_lt_esperados)
+        self.assertEqual(fc_lt_esperados["Soquetes 2x6p"]["Leadtime"], 17)
+        self.assertAlmostEqual(fc_lt_esperados["Soquetes 2x6p"]["Custo"], 5137)
+
+        # Componente Invólucro
+        self.assertIn("Invólucro", fc_lt_esperados)
+        self.assertEqual(fc_lt_esperados["Invólucro"]["Leadtime"], 18)
+        self.assertAlmostEqual(fc_lt_esperados["Invólucro"]["Custo"], 5548)
+
+        # Componente Antena LoRa
+        self.assertIn("Antena LoRa", fc_lt_esperados)
+        self.assertEqual(fc_lt_esperados["Antena LoRa"]["Leadtime"], 19)
+        self.assertAlmostEqual(fc_lt_esperados["Antena LoRa"]["Custo"], 5814)
+
+        # Componente D-SUB25 macho
+        self.assertIn("D-SUB25 macho", fc_lt_esperados)
+        self.assertEqual(fc_lt_esperados["D-SUB25 macho"]["Leadtime"], 20)
+        self.assertAlmostEqual(fc_lt_esperados["D-SUB25 macho"]["Custo"], 7548)
+
+
 if __name__ == '__main__':
     unittest.main()
