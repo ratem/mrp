@@ -1,6 +1,7 @@
 import unittest
 import os
 from mrp import MRP  # Importa a classe MRP
+from openpyxl import Workbook
 
 
 class TestMRPInicializacao(unittest.TestCase):
@@ -26,7 +27,6 @@ class TestMRPInicializacao(unittest.TestCase):
         # Cria arquivo de Estoque de exemplo para teste
         self.criar_arquivo_estoque_teste()
 
-
     def tearDown(self):
         """
         Método que é executado após cada teste.
@@ -42,24 +42,36 @@ class TestMRPInicializacao(unittest.TestCase):
         """
         Cria arquivos de BOM de exemplo (XLSX) para serem usados nos testes.
         """
-        from openpyxl import Workbook
-
         # Criar arquivo ETI_BOM.xlsx
         workbook_eti = Workbook()
         sheet_eti = workbook_eti.active
         sheet_eti.append(["Material", "Quantidade"])  # Cabeçalho
-        sheet_eti.append(["ETI", 1])
         sheet_eti.append(["JOKER", 1])
         sheet_eti.append(["DAQ", 1])
+        sheet_eti.append(["SX1276 (LoRa)", 1])
+        sheet_eti.append(["ADS1115", 2])
+        sheet_eti.append(["Conector DB25 fêmea", 1])
+        sheet_eti.append(["Soquetes 2x6p", 1])
+        sheet_eti.append(["Invólucro", 1])
+        sheet_eti.append(["Antena LoRa", 1])
+        sheet_eti.append(["D-SUB25 macho", 1])
         workbook_eti.save(os.path.join(self.pasta_testes, "ETI_BOM.xlsx"))
 
         # Criar arquivo ETF_BOM.xlsx
         workbook_etf = Workbook()
         sheet_etf = workbook_etf.active
         sheet_etf.append(["Material", "Quantidade"])  # Cabeçalho
-        sheet_etf.append(["ETF", 1])
-        sheet_etf.append(["ETI", 1])
         sheet_etf.append(["JOKER", 1])
+        sheet_etf.append(["DAQ", 1])
+        sheet_etf.append(["Módulo 3G/4G", 1])
+        sheet_etf.append(["Chip Internet Móvel", 1])
+        sheet_etf.append(["SX1276 (LoRa)", 1])
+        sheet_etf.append(["ADS1115", 2])
+        sheet_etf.append(["Conector DB25 fêmea", 1])
+        sheet_etf.append(["Soquetes 2x6p", 1])
+        sheet_etf.append(["Invólucro", 1])
+        sheet_etf.append(["Antena LoRa", 1])
+        sheet_etf.append(["D-SUB25 macho", 1])
         workbook_etf.save(os.path.join(self.pasta_testes, "ETF_BOM.xlsx"))
 
     def test_carregar_bom(self):
@@ -69,17 +81,15 @@ class TestMRPInicializacao(unittest.TestCase):
         self.mrp.inicializar_dados()
 
         # Verifica se as BOMs foram carregadas corretamente
-        self.assertIn("ETI", self.mrp.bom)
-        self.assertIn("ETF", self.mrp.bom)
-        self.assertEqual(self.mrp.bom["ETI"]["JOKER"], 1)
-        self.assertEqual(self.mrp.bom["ETF"]["ETI"], 1)
+        self.assertIn("ETI", self.mrp.boms)
+        self.assertIn("ETF", self.mrp.boms)
+        self.assertEqual(self.mrp.boms["ETI"]["JOKER"], 1)
+        self.assertEqual(self.mrp.boms["ETF"]["JOKER"], 1)
 
     def criar_arquivo_estoque_teste(self):
         """
         Cria arquivo de Estoque de exemplo (XLSX) para ser usado nos testes.
         """
-        from openpyxl import Workbook
-
         # Criar arquivo Estoque.xlsx
         workbook_estoque = Workbook()
         sheet_estoque = workbook_estoque.active
@@ -117,39 +127,65 @@ class TestMRPInicializacao(unittest.TestCase):
         # Define a demanda
         demanda = {"ETI": 100, "ETF": 100}
 
+        # Inicializa os dados do MRP
+        self.mrp.inicializar_dados()
+
         # Calcula as quantidades de produção e aquisição
         quantidades, ordens_planejamento = self.mrp.calcular_quantidades_producao_aquisicao(demanda)
 
-        # Verificações (ajustadas com os dados da planilha)
+        # Verificações
         # Produto ETI
-        self.assertEqual(quantidades["ETI"]["quantidade_a_produzir"], 95)
-        self.assertEqual(ordens_planejamento["ETI"]["Produção"], 95)
-        self.assertEqual(quantidades["JOKER"]["quantidade_a_adquirir"], 190)
-        self.assertEqual(ordens_planejamento["JOKER"]["Aquisição"], 190)
-        self.assertEqual(quantidades["DAQ"]["quantidade_a_adquirir"], 190)
-        self.assertEqual(ordens_planejamento["DAQ"]["Aquisição"], 190)
-        self.assertEqual(quantidades["SX1276 (LoRa)"]["quantidade_a_adquirir"], 190)
-        self.assertEqual(ordens_planejamento["SX1276 (LoRa)"]["Aquisição"], 190)
-        self.assertEqual(quantidades["ADS1115"]["quantidade_a_adquirir"], 380)
-        self.assertEqual(ordens_planejamento["ADS1115"]["Aquisição"], 380)
-        self.assertEqual(quantidades["Conector DB25 fêmea"]["quantidade_a_adquirir"], 190)
-        self.assertEqual(ordens_planejamento["Conector DB25 fêmea"]["Aquisição"], 190)
-        self.assertEqual(quantidades["Soquetes 2x6p"]["quantidade_a_adquirir"], 190)
-        self.assertEqual(ordens_planejamento["Soquetes 2x6p"]["Aquisição"], 190)
-        self.assertEqual(quantidades["Invólucro"]["quantidade_a_adquirir"], 190)
-        self.assertEqual(ordens_planejamento["Invólucro"]["Aquisição"], 190)
-        self.assertEqual(quantidades["Antena LoRa"]["quantidade_a_adquirir"], 190)
-        self.assertEqual(ordens_planejamento["Antena LoRa"]["Aquisição"], 190)
-        self.assertEqual(quantidades["D-SUB25 macho"]["quantidade_a_adquirir"], 190)
-        self.assertEqual(ordens_planejamento["D-SUB25 macho"]["Aquisição"], 190)
+        self.assertEqual(quantidades["ETI"]["quantidade_a_produzir"], 100)
+        self.assertEqual(ordens_planejamento["ETI"]["Produção"], 100)
 
         # Produto ETF
         self.assertEqual(quantidades["ETF"]["quantidade_a_produzir"], 105)
         self.assertEqual(ordens_planejamento["ETF"]["Produção"], 105)
-        self.assertEqual(quantidades["Módulo 3G/4G"]["quantidade_a_adquirir"], 100)
-        self.assertEqual(ordens_planejamento["Módulo 3G/4G"]["Aquisição"], 100)
-        self.assertEqual(quantidades["Chip Internet Móvel"]["quantidade_a_adquirir"], 100)
-        self.assertEqual(ordens_planejamento["Chip Internet Móvel"]["Aquisição"], 100)
+
+        # Componentes (CORREÇÃO AQUI)
+        # Estoque mínimo de JOKER é 10, estoque inicial é 10. Demanda é 205. Precisa adquirir 205.
+        self.assertEqual(quantidades["JOKER"]["quantidade_a_adquirir"], 205)
+        self.assertEqual(ordens_planejamento["JOKER"]["Aquisição"], 205)
+
+        # Estoque mínimo de DAQ é 10, estoque inicial é 10. Demanda é 205. Precisa adquirir 205.
+        self.assertEqual(quantidades["DAQ"]["quantidade_a_adquirir"], 205)
+        self.assertEqual(ordens_planejamento["DAQ"]["Aquisição"], 205)
+
+        # Estoque mínimo de SX1276 (LoRa) é 20, estoque inicial é 20. Demanda é 205. Precisa adquirir 205.
+        self.assertEqual(quantidades["SX1276 (LoRa)"]["quantidade_a_adquirir"], 205)
+        self.assertEqual(ordens_planejamento["SX1276 (LoRa)"]["Aquisição"], 205)
+
+        # Estoque mínimo de ADS1115 é 5, estoque inicial é 10. Demanda é 410. Precisa adquirir 405.
+        self.assertEqual(quantidades["ADS1115"]["quantidade_a_adquirir"], 405)
+        self.assertEqual(ordens_planejamento["ADS1115"]["Aquisição"], 405)
+
+        # Estoque mínimo de Conector DB25 fêmea é 10, estoque inicial é 30. Demanda é 205. Precisa adquirir 185.
+        self.assertEqual(quantidades["Conector DB25 fêmea"]["quantidade_a_adquirir"], 185)
+        self.assertEqual(ordens_planejamento["Conector DB25 fêmea"]["Aquisição"], 185)
+
+        # Estoque mínimo de Soquetes 2x6p é 20, estoque inicial é 20. Demanda é 205. Precisa adquirir 205.
+        self.assertEqual(quantidades["Soquetes 2x6p"]["quantidade_a_adquirir"], 205)
+        self.assertEqual(ordens_planejamento["Soquetes 2x6p"]["Aquisição"], 205)
+
+        # Estoque mínimo de Invólucro é 5, estoque inicial é 5. Demanda é 205. Precisa adquirir 205.
+        self.assertEqual(quantidades["Invólucro"]["quantidade_a_adquirir"], 205)
+        self.assertEqual(ordens_planejamento["Invólucro"]["Aquisição"], 205)
+
+        # Estoque mínimo de Antena LoRa é 10, estoque inicial é 15. Demanda é 205. Precisa adquirir 200.
+        self.assertEqual(quantidades["Antena LoRa"]["quantidade_a_adquirir"], 200)
+        self.assertEqual(ordens_planejamento["Antena LoRa"]["Aquisição"], 200)
+
+        # Estoque mínimo de D-SUB25 macho é 50, estoque inicial é 12. Demanda é 205. Precisa adquirir 248.
+        self.assertEqual(quantidades["D-SUB25 macho"]["quantidade_a_adquirir"], 243)
+        self.assertEqual(ordens_planejamento["D-SUB25 macho"]["Aquisição"], 243)
+
+        # Estoque mínimo de Módulo 3G/4G é 10, estoque inicial é 10. Demanda é 105. Precisa adquirir 105.
+        self.assertEqual(quantidades["Módulo 3G/4G"]["quantidade_a_adquirir"], 105)
+        self.assertEqual(ordens_planejamento["Módulo 3G/4G"]["Aquisição"], 105)
+
+        # Estoque mínimo de Chip Internet Móvel é 5, estoque inicial é 5. Demanda é 105. Precisa adquirir 105.
+        self.assertEqual(quantidades["Chip Internet Móvel"]["quantidade_a_adquirir"], 105)
+        self.assertEqual(ordens_planejamento["Chip Internet Móvel"]["Aquisição"], 105)
 
 if __name__ == '__main__':
     unittest.main()
