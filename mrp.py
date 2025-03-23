@@ -27,7 +27,7 @@ class MRP:
             codigo_material = row['Material']
             self.estoque[codigo_material] = {
                 'em_estoque': row['Em Estoque'],
-                'minimo': row['Mínimo'],
+                'minimo': row['Minimo'],
                 'custo_medio_unitario': row['Custo Medio Unitario'],
                 'imposto_medio_unitario': row['Imposto Medio Unitario'],
                 'frete_medio_lote': row['Frete Medio Lote'],
@@ -55,6 +55,7 @@ class MRP:
         df_estoque = pd.DataFrame(estoque_sheet.values)
         df_estoque.columns = df_estoque.iloc[0]
         df_estoque = df_estoque[1:]
+        df_estoque = df_estoque.dropna(how='all')  # Remove linhas completamente vazias
         self.carregar_estoque(df_estoque)
 
         # Carrega as BOMs
@@ -67,6 +68,7 @@ class MRP:
                 df_bom = pd.DataFrame(bom_sheet.values)
                 df_bom.columns = df_bom.iloc[0]
                 df_bom = df_bom[1:]
+                df_bom = df_bom.dropna(how='all')  # Adicionado dropna() para remover linhas completamente vazias
                 self.carregar_bom(codigo_produto, df_bom)
 
     def calcular_quantidades_producao_aquisicao(self, demanda):
@@ -211,6 +213,35 @@ class MRP:
         return self.planejamento
 
 
+    def imprimir_quadro_planejamento(self):
+        """
+        Imprime o quadro de planejamento de forma tabular no console.
+        """
+        from tabulate import tabulate
+
+        tabela = []
+        cabecalho = ["Material", "Estoque Atual"]
+        datas_entrega = set()
+
+        # Coleta todas as datas de entrega únicas
+        for material, dados in self.planejamento.items():
+            for chave in dados.keys():
+                if chave != "Estoque Atual":
+                    datas_entrega.add(chave)
+
+        # Adiciona as datas de entrega ao cabeçalho
+        cabecalho.extend(sorted(list(datas_entrega)))
+
+        # Popula a tabela com os dados
+        for material, dados in self.planejamento.items():
+            linha = [material, dados["Estoque Atual"]]
+            for data in sorted(list(datas_entrega)):
+                linha.append(dados.get(data, ""))  # Usa "" se a data não existir para o material
+            tabela.append(linha)
+
+        # Imprime a tabela no console
+        print(tabulate(tabela, headers=cabecalho, tablefmt="grid"))
+
     def planejar_producao(self, demanda):
         """
         Realiza o planejamento da produção com base na demanda e nos dados inicializados.
@@ -222,33 +253,12 @@ class MRP:
         if self.estado != "Inicializado":
             print("Erro: Os dados ainda não foram inicializados.")
             return
-
-        self.quantidades = {}
-        self.ordens_planejamento = {}
-        self.fc_lt_esperados = {}
-        self.planejamento = {}
-
-        for produto, quantidade_demandada in demanda.items():
-            # 1) Calcular a quantidade do produto final multiplicada pelas quantidades obtidas na BOM
-            if produto not in self.bom:
-                print(f"Aviso: Produto {produto} não encontrado na BOM. Ignorando.")
-                continue
-
-            self.quantidades[produto] = self.quantidades.get(produto, 0) + quantidade_demandada
-
-            for componente, quantidade_por_produto in self.bom[produto].items():
-                quantidade_necessaria = quantidade_demandada * quantidade_por_produto
-                self.quantidades[componente] = self.quantidades.get(componente, 0) + quantidade_necessaria
-
-            # 2) Verificar no estoque quando de cada material (produto e componentes) está registrado como disponível no estoque.
-            # 3) Lógica de produção e aquisição (considerando o estoque mínimo)
-            # 4) Salvar as quantidades num dicionário denominado quantidades
-            # 5) Um segundo dicionário, denominado ordens_planejamento
-            # 6) Um terceiro dicionário, denominado fc_lt_esperados
-            # 7) Um quarto dicionário, denominado planejamento
-            # 8) Após finalizado, mudar o estado do MRP para Planejado.
-            # Implementar a lógica de planejamento conforme os requisitos
-
+        # Calcula as quantidades de produção e aquisição
+        self.calcular_quantidades_producao_aquisicao(demanda)
+        # Calcula leadtimes
+        self.calcular_fc_lt_esperados()
+        # Monta o quadro de planejamento
+        quadro_planejamento = self.montar_quadro_planejamento()
         self.estado = "Planejado"
 
     def executar_controle(self, cotações):
@@ -268,7 +278,6 @@ class MRP:
         # 4) Deve possuir funcionalidade de listar em tela ou exportar para planilhas as ordens.
         # 5) Deve possuir funcionalidade de editar o dicionário de ordens
         # 6) Após o ciclo de produção ser fechado, o MRP deve mudar seu estado para Encerrado.
-        # Implementar a lógica de execução e controle conforme os requisitos
 
         self.estado = "Em Execução"
 
@@ -283,5 +292,4 @@ class MRP:
         # 1) Ser capaz de ler N planilhas de MRP e mostrar insights como alterações em ordens de produção, atrasos, variação de custos, flutuação de estoque etc.
         # 2) A análise é feita sobre ciclos encerrados ou em execução.
         # 3) É interessante para o usuário manter na mesma pasta versões das planilhas, a medida que as ordens vão sendo executadas, para que seja possível ter um histórico da evolução da execução e aprimorar valores médios empregados, bem como detectar gargalos e outros problemas.
-        # Implementar a lógica de análise conforme os requisitos
         pass

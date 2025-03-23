@@ -96,7 +96,7 @@ class TestMRPInicializacao(unittest.TestCase):
 
         # Dados de Estoque (obtidos da planilha anexa)
         dados_estoque = [
-            ["Material", "Em Estoque", "Mínimo", "Custo Medio Unitario", "Imposto Medio Unitario", "Frete Medio Lote",
+            ["Material", "Em Estoque", "Minimo", "Custo Medio Unitario", "Imposto Medio Unitario", "Frete Medio Lote",
              "Leadtime Medio Lote"],
             ["ETF", 0, 5, 100, 0, 0, 5],
             ["JOKER", 10, 10, 10, 1, 5, 10],
@@ -320,6 +320,7 @@ class TestMRPInicializacao(unittest.TestCase):
         data_entrega_etf_str = data_entrega_etf.strftime('%Y-%m-%d')
         self.assertIn(data_entrega_etf_str, quadro_planejamento["ETF"])
         self.assertEqual(quadro_planejamento["ETF"][data_entrega_etf_str], 105)  # Quantidade de ETF
+        self.mrp.imprimir_quadro_planejamento()
 
 
 if __name__ == '__main__':
