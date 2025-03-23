@@ -18,3 +18,8 @@ if __name__ == '__main__':
     #mrp.exportar_ordens_producao("ordens.xlsx")
     mrp.iniciar_execucao()
     mrp.listar_ordens_controle()
+    mrp.atualizar_status_ordem("JOKER", 'Executada')
+    # Edita a ordem novamente
+    nova_quantidade = 80
+    resultado = mrp.editar_ordem("JOKER", 'Aquisição', 80)
+

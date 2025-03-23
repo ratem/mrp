@@ -16,14 +16,11 @@ class TestMRPInicializacao(unittest.TestCase):
         """
         self.pasta_testes = "test_data"  # Diretório com os arquivos de teste
         self.mrp = MRP(self.pasta_testes)
-
         # Cria o diretório de testes se não existir
         if not os.path.exists(self.pasta_testes):
             os.makedirs(self.pasta_testes)
-
         # Cria arquivos de BOM de exemplo para teste
         self.criar_arquivos_bom_teste()
-
         # Cria arquivo de Estoque de exemplo para teste
         self.criar_arquivo_estoque_teste()
 
@@ -56,7 +53,6 @@ class TestMRPInicializacao(unittest.TestCase):
         sheet_eti.append(["Antena LoRa", 1])
         sheet_eti.append(["D-SUB25 macho", 1])
         workbook_eti.save(os.path.join(self.pasta_testes, "ETI_BOM.xlsx"))
-
         # Criar arquivo ETF_BOM.xlsx
         workbook_etf = Workbook()
         sheet_etf = workbook_etf.active
@@ -79,7 +75,6 @@ class TestMRPInicializacao(unittest.TestCase):
         Testa se as BOMs são carregadas corretamente.
         """
         self.mrp.inicializar_dados()
-
         # Verifica se as BOMs foram carregadas corretamente
         self.assertIn("ETI", self.mrp.boms)
         self.assertIn("ETF", self.mrp.boms)
@@ -93,7 +88,6 @@ class TestMRPInicializacao(unittest.TestCase):
         # Criar arquivo Estoque.xlsx
         workbook_estoque = Workbook()
         sheet_estoque = workbook_estoque.active
-
         # Dados de Estoque (obtidos da planilha anexa)
         dados_estoque = [
             ["Material", "Em Estoque", "Minimo", "Custo Medio Unitario", "Imposto Medio Unitario", "Frete Medio Lote",
@@ -112,11 +106,9 @@ class TestMRPInicializacao(unittest.TestCase):
             ["D-SUB25 macho", 12, 50, 20, 11, 15, 20],
             ["ETI", 5, 5, 80, 0, 0, 5]
         ]
-
         # Escrever os dados na planilha
         for linha in dados_estoque:
             sheet_estoque.append(linha)
-
         # Salvar o arquivo
         workbook_estoque.save(os.path.join(self.pasta_testes, "Estoque.xlsx"))
 
@@ -126,63 +118,48 @@ class TestMRPInicializacao(unittest.TestCase):
         """
         # Define a demanda
         demanda = {"ETI": 100, "ETF": 100}
-
         # Inicializa os dados do MRP
         self.mrp.inicializar_dados()
-
         # Calcula as quantidades de produção e aquisição
         quantidades, ordens_planejamento = self.mrp.calcular_quantidades_producao_aquisicao(demanda)
-
         # Verificações
         # Produto ETI
         self.assertEqual(quantidades["ETI"]["quantidade_a_produzir"], 100)
         self.assertEqual(ordens_planejamento["ETI"]["Produção"], 100)
-
         # Produto ETF
         self.assertEqual(quantidades["ETF"]["quantidade_a_produzir"], 105)
         self.assertEqual(ordens_planejamento["ETF"]["Produção"], 105)
-
-        # Componentes (CORREÇÃO AQUI)
+        # Componentes
         # Estoque mínimo de JOKER é 10, estoque inicial é 10. Demanda é 205. Precisa adquirir 205.
         self.assertEqual(quantidades["JOKER"]["quantidade_a_adquirir"], 205)
         self.assertEqual(ordens_planejamento["JOKER"]["Aquisição"], 205)
-
         # Estoque mínimo de DAQ é 10, estoque inicial é 10. Demanda é 205. Precisa adquirir 205.
         self.assertEqual(quantidades["DAQ"]["quantidade_a_adquirir"], 205)
         self.assertEqual(ordens_planejamento["DAQ"]["Aquisição"], 205)
-
         # Estoque mínimo de SX1276 (LoRa) é 20, estoque inicial é 20. Demanda é 205. Precisa adquirir 205.
         self.assertEqual(quantidades["SX1276 (LoRa)"]["quantidade_a_adquirir"], 205)
         self.assertEqual(ordens_planejamento["SX1276 (LoRa)"]["Aquisição"], 205)
-
         # Estoque mínimo de ADS1115 é 5, estoque inicial é 10. Demanda é 410. Precisa adquirir 405.
         self.assertEqual(quantidades["ADS1115"]["quantidade_a_adquirir"], 405)
         self.assertEqual(ordens_planejamento["ADS1115"]["Aquisição"], 405)
-
         # Estoque mínimo de Conector DB25 fêmea é 10, estoque inicial é 30. Demanda é 205. Precisa adquirir 185.
         self.assertEqual(quantidades["Conector DB25 fêmea"]["quantidade_a_adquirir"], 185)
         self.assertEqual(ordens_planejamento["Conector DB25 fêmea"]["Aquisição"], 185)
-
         # Estoque mínimo de Soquetes 2x6p é 20, estoque inicial é 20. Demanda é 205. Precisa adquirir 205.
         self.assertEqual(quantidades["Soquetes 2x6p"]["quantidade_a_adquirir"], 205)
         self.assertEqual(ordens_planejamento["Soquetes 2x6p"]["Aquisição"], 205)
-
         # Estoque mínimo de Invólucro é 5, estoque inicial é 5. Demanda é 205. Precisa adquirir 205.
         self.assertEqual(quantidades["Invólucro"]["quantidade_a_adquirir"], 205)
         self.assertEqual(ordens_planejamento["Invólucro"]["Aquisição"], 205)
-
         # Estoque mínimo de Antena LoRa é 10, estoque inicial é 15. Demanda é 205. Precisa adquirir 200.
         self.assertEqual(quantidades["Antena LoRa"]["quantidade_a_adquirir"], 200)
         self.assertEqual(ordens_planejamento["Antena LoRa"]["Aquisição"], 200)
-
         # Estoque mínimo de D-SUB25 macho é 50, estoque inicial é 12. Demanda é 205. Precisa adquirir 248.
         self.assertEqual(quantidades["D-SUB25 macho"]["quantidade_a_adquirir"], 243)
         self.assertEqual(ordens_planejamento["D-SUB25 macho"]["Aquisição"], 243)
-
         # Estoque mínimo de Módulo 3G/4G é 10, estoque inicial é 10. Demanda é 105. Precisa adquirir 105.
         self.assertEqual(quantidades["Módulo 3G/4G"]["quantidade_a_adquirir"], 105)
         self.assertEqual(ordens_planejamento["Módulo 3G/4G"]["Aquisição"], 105)
-
         # Estoque mínimo de Chip Internet Móvel é 5, estoque inicial é 5. Demanda é 105. Precisa adquirir 105.
         self.assertEqual(quantidades["Chip Internet Móvel"]["quantidade_a_adquirir"], 105)
         self.assertEqual(ordens_planejamento["Chip Internet Móvel"]["Aquisição"], 105)
@@ -193,15 +170,12 @@ class TestMRPInicializacao(unittest.TestCase):
         """
         # Define a demanda
         demanda = {"ETI": 100, "ETF": 100}
-
         # Inicializa os dados do MRP
         self.mrp.inicializar_dados()
-
         # Calcula as quantidades de produção e aquisição
         self.mrp.calcular_quantidades_producao_aquisicao(
             demanda)  # Garante que self.ordens_planejamento esteja preenchido
         fc_lt_esperados = self.mrp.calcular_fc_lt_esperados()
-
         # Verificações
         # Produto ETI
         self.assertIn("ETI", fc_lt_esperados)
@@ -209,68 +183,56 @@ class TestMRPInicializacao(unittest.TestCase):
         self.assertIn("Custo", fc_lt_esperados["ETI"])
         self.assertEqual(fc_lt_esperados["ETI"]["Leadtime"], 25)
         self.assertAlmostEqual(fc_lt_esperados["ETI"]["Custo"], 8000)  # Verifique o custo
-
         # Produto ETF
         self.assertIn("ETF", fc_lt_esperados)
         self.assertIn("Leadtime", fc_lt_esperados["ETF"])
         self.assertIn("Custo", fc_lt_esperados["ETF"])
         self.assertEqual(fc_lt_esperados["ETF"]["Leadtime"], 25)
         self.assertAlmostEqual(fc_lt_esperados["ETF"]["Custo"], 10500)
-
         # Componente JOKER
         self.assertIn("JOKER", fc_lt_esperados)
         self.assertIn("Leadtime", fc_lt_esperados["JOKER"])
         self.assertIn("Custo", fc_lt_esperados["JOKER"])
         self.assertEqual(fc_lt_esperados["JOKER"]["Leadtime"], 10)
         self.assertAlmostEqual(fc_lt_esperados["JOKER"]["Custo"], 2260)
-
         # Componente DAQ
         self.assertIn("DAQ", fc_lt_esperados)
         self.assertIn("Leadtime", fc_lt_esperados["DAQ"])
         self.assertIn("Custo", fc_lt_esperados["DAQ"])
         self.assertEqual(fc_lt_esperados["DAQ"]["Leadtime"], 11)
         self.assertAlmostEqual(fc_lt_esperados["DAQ"]["Custo"], 2671)
-
         # Componente Módulo 3G/4G
         self.assertIn("Módulo 3G/4G", fc_lt_esperados)
         self.assertEqual(fc_lt_esperados["Módulo 3G/4G"]["Leadtime"], 12)
         self.assertAlmostEqual(fc_lt_esperados["Módulo 3G/4G"]["Custo"], 1582)
-
         # Componente Chip Internet Móvel
         self.assertIn("Chip Internet Móvel", fc_lt_esperados)
         self.assertEqual(fc_lt_esperados["Chip Internet Móvel"]["Leadtime"], 13)
         self.assertAlmostEqual(fc_lt_esperados["Chip Internet Móvel"]["Custo"], 1793)
-
         # Componente SX1276 (LoRa)
         self.assertIn("SX1276 (LoRa)", fc_lt_esperados)
         self.assertEqual(fc_lt_esperados["SX1276 (LoRa)"]["Leadtime"], 14)
         self.assertAlmostEqual(fc_lt_esperados["SX1276 (LoRa)"]["Custo"], 3904)
-
         # Componente ADS1115
         self.assertIn("ADS1115", fc_lt_esperados)
         self.assertEqual(fc_lt_esperados["ADS1115"]["Leadtime"], 15)
         self.assertAlmostEqual(fc_lt_esperados["ADS1115"]["Custo"], 8515)
-
         # Componente Conector DB25 fêmea
         self.assertIn("Conector DB25 fêmea", fc_lt_esperados)
         self.assertEqual(fc_lt_esperados["Conector DB25 fêmea"]["Leadtime"], 16)
         self.assertAlmostEqual(fc_lt_esperados["Conector DB25 fêmea"]["Custo"], 4266)
-
         # Componente Soquetes 2x6p
         self.assertIn("Soquetes 2x6p", fc_lt_esperados)
         self.assertEqual(fc_lt_esperados["Soquetes 2x6p"]["Leadtime"], 17)
         self.assertAlmostEqual(fc_lt_esperados["Soquetes 2x6p"]["Custo"], 5137)
-
         # Componente Invólucro
         self.assertIn("Invólucro", fc_lt_esperados)
         self.assertEqual(fc_lt_esperados["Invólucro"]["Leadtime"], 18)
         self.assertAlmostEqual(fc_lt_esperados["Invólucro"]["Custo"], 5548)
-
         # Componente Antena LoRa
         self.assertIn("Antena LoRa", fc_lt_esperados)
         self.assertEqual(fc_lt_esperados["Antena LoRa"]["Leadtime"], 19)
         self.assertAlmostEqual(fc_lt_esperados["Antena LoRa"]["Custo"], 5814)
-
         # Componente D-SUB25 macho
         self.assertIn("D-SUB25 macho", fc_lt_esperados)
         self.assertEqual(fc_lt_esperados["D-SUB25 macho"]["Leadtime"], 20)
@@ -284,37 +246,29 @@ class TestMRPInicializacao(unittest.TestCase):
 
         # Define a demanda
         demanda = {"ETI": 100, "ETF": 100}
-
         # Inicializa os dados do MRP
         self.mrp.inicializar_dados()
-
         # Calcula as quantidades de produção e aquisição
         self.mrp.calcular_quantidades_producao_aquisicao(demanda)
-
         # Calcula leadtimes
         self.mrp.calcular_fc_lt_esperados()
-
         # Monta o quadro de planejamento
         quadro_planejamento = self.mrp.montar_quadro_planejamento()
-
         # Verificações
         # Verifica se o quadro de planejamento foi criado corretamente
         self.assertIn("ETI", quadro_planejamento)
         self.assertIn("ETF", quadro_planejamento)
         self.assertIn("JOKER", quadro_planejamento)
-
         # Verifica se os valores estão corretos (ajuste conforme necessário)
         self.assertEqual(quadro_planejamento["ETI"]["Estoque Atual"], 5)
         self.assertEqual(quadro_planejamento["ETF"]["Estoque Atual"], 0)
         self.assertEqual(quadro_planejamento["JOKER"]["Estoque Atual"], 10)
-
         # Verifica se as datas de entrega foram calculadas corretamente
         # Lead time de ETI: 5 (produto) + max(10, 11, 14, 16, 17, 18, 19, 20)
         data_entrega_eti = datetime.now() + timedelta(days=5 + 20)
         data_entrega_eti_str = data_entrega_eti.strftime('%Y-%m-%d')
         self.assertIn(data_entrega_eti_str, quadro_planejamento["ETI"])
         self.assertEqual(quadro_planejamento["ETI"][data_entrega_eti_str], 100)  # Quantidade de ETI
-
         # Lead time de ETF: 5 (produto) + max(10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20) = 20
         data_entrega_etf = datetime.now() + timedelta(days=5 + 20)
         data_entrega_etf_str = data_entrega_etf.strftime('%Y-%m-%d')
@@ -365,20 +319,81 @@ class TestMRPInicializacao(unittest.TestCase):
                     self.mrp.ordens_planejamento[material]['Aquisição']
                 )
 
+    def test_editar_cancelar_ordem(self):
+        """
+        Testa se é possível editar e cancelar ordens.
+        A sequência de eventos deve ser:
+        "Ordem de Aquisição para 'JOKER' editada: 205 -> 255"
+        Uma ordem de aquisição para o componente 'JOKER' foi editada, aumentando a quantidade de 205 para 255 unidades.
+        "Status da ordem para 'JOKER' atualizado para 'Executada'."
+        O status da ordem foi alterado para "Executada", indicando que a ordem está em processamento.
+        "Status da ordem para 'JOKER' atualizado para 'Planejada' devido à edição."
+        Quando a ordem foi editada novamente, o sistema automaticamente reverteu o status para "Planejada", seguindo a regra de que ordens editadas devem voltar ao estado inicial.
+        "Ordem de Aquisição para 'JOKER' editada: 255 -> 235"
+        A quantidade da ordem foi reduzida de 255 para 235 unidades.
+        "Ordem para 'JOKER' cancelada. Quantidades zeradas e status definido como 'Planejada'."
+        A ordem foi completamente cancelada, zerando as quantidades e definindo o status como "Planejada".
+        "Erro: Não é possível atualizar o status de uma ordem cancelada (quantidades zeradas)."
+        Uma tentativa de atualizar o status de uma ordem cancelada foi rejeitada pelo sistema, conforme esperado.
+        "Execução iniciada com sucesso. Estado atual: Em Execução"
+        O MRP iniciou uma nova fase de execução.
+        """
+        # Define a demanda
+        demanda = {"ETI": 100, "ETF": 100}
+        # Inicializa os dados do MRP
+        self.mrp.inicializar_dados()
+        # Realiza o planejamento
+        self.mrp.planejar_producao(demanda)
+        # Inicia a execução
+        self.mrp.iniciar_execucao()
+        # Verifica se o estado mudou para Em Execução
+        self.assertEqual(self.mrp.estado, "Em Execução")
+        # Seleciona um material para testar (JOKER)
+        material = "JOKER"
+        # Guarda a quantidade inicial de aquisição
+        quantidade_inicial = self.mrp.ordens_controle[material]['Aquisição']
+        # Edita a ordem
+        nova_quantidade = quantidade_inicial + 50
+        resultado = self.mrp.editar_ordem(material, 'Aquisição', nova_quantidade)
+        self.assertTrue(resultado)
+        # Verifica se a quantidade foi atualizada
+        self.assertEqual(self.mrp.ordens_controle[material]['Aquisição'], nova_quantidade)
+        # Verifica se o status permanece como 'Planejada'
+        self.assertEqual(self.mrp.ordens_controle[material]['Status'], 'Planejada')
+        # Atualiza o status para 'Executada'
+        self.mrp.atualizar_status_ordem(material, 'Executada')
+        # Edita a ordem novamente
+        nova_quantidade_2 = nova_quantidade - 20
+        resultado = self.mrp.editar_ordem(material, 'Aquisição', nova_quantidade_2)
+        self.assertTrue(resultado)
+        # Verifica se a quantidade foi atualizada
+        self.assertEqual(self.mrp.ordens_controle[material]['Aquisição'], nova_quantidade_2)
+        # Verifica se o status voltou para 'Planejada'
+        self.assertEqual(self.mrp.ordens_controle[material]['Status'], 'Planejada')
+        # Testa o cancelamento de ordem
+        resultado = self.mrp.cancelar_ordem(material)
+        self.assertTrue(resultado)
+        # Verifica se as quantidades foram zeradas
+        self.assertEqual(self.mrp.ordens_controle[material]['Aquisição'], 0)
+        # Verifica se o status é 'Planejada'
+        self.assertEqual(self.mrp.ordens_controle[material]['Status'], 'Planejada')
+        # Tenta atualizar o status de uma ordem cancelada
+        resultado = self.mrp.atualizar_status_ordem(material, 'Executada')
+        self.assertFalse(resultado)
 
     def test_atualizar_status_ordem(self):
         """
         Testa se o status de uma ordem é atualizado corretamente.
         A sequência de eventos no teste deve ser:
-                Inicialização da execução: O MRP mudou seu estado para "Em Execução" com sucesso.
-                Atualização para 'Executada': O status da ordem para o material 'JOKER' foi atualizado para 'Executada' com sucesso.
-                Atualização para 'Pronta': O status da ordem para 'JOKER' foi atualizado para 'Pronta' com sucesso, o que desencadeou a atualização do estoque.
-                Atualização do estoque: Como 'JOKER' não tinha ordem de produção (apenas aquisição), o sistema corretamente adicionou 0 unidades de produção e 205 unidades de aquisição ao estoque.
-                Teste de casos inválidos: O sistema rejeitou corretamente:
-                Um status inválido ("Status Inválido")
-                Um material inexistente ("Material Inexistente")
-                Uma atualização quando o MRP não estava em execução (após mudar o estado)
-                Nova inicialização: No final, o teste parece ter iniciado a execução novamente.
+        Inicialização da execução: O MRP mudou seu estado para "Em Execução" com sucesso.
+        Atualização para 'Executada': O status da ordem para o material 'JOKER' foi atualizado para 'Executada' com sucesso.
+        Atualização para 'Pronta': O status da ordem para 'JOKER' foi atualizado para 'Pronta' com sucesso, o que desencadeou a atualização do estoque.
+        Atualização do estoque: Como 'JOKER' não tinha ordem de produção (apenas aquisição), o sistema corretamente adicionou 0 unidades de produção e 205 unidades de aquisição ao estoque.
+        Teste de casos inválidos: O sistema rejeitou corretamente:
+        Um status inválido ("Status Inválido")
+        Um material inexistente ("Material Inexistente")
+        Uma atualização quando o MRP não estava em execução (após mudar o estado)
+        Nova inicialização: No final, o teste parece ter iniciado a execução novamente.
         """
         # Define a demanda
         demanda = {"ETI": 100, "ETF": 100}
@@ -421,7 +436,6 @@ class TestMRPInicializacao(unittest.TestCase):
         self.mrp.estado = "Planejado"
         resultado = self.mrp.atualizar_status_ordem(material, 'Pronta')
         self.assertFalse(resultado)
-
 
 if __name__ == '__main__':
     unittest.main()

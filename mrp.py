@@ -485,6 +485,93 @@ class MRP:
         print("Execução iniciada com sucesso. Estado atual: Em Execução")
         return True
 
+    def editar_ordem(self, material, tipo_ordem, nova_quantidade):
+        """
+        Edita a quantidade de uma ordem específica.
+
+        Args:
+            material (str): Código do material cuja ordem será editada.
+            tipo_ordem (str): Tipo de ordem ('Produção' ou 'Aquisição').
+            nova_quantidade (int): Nova quantidade para a ordem.
+
+        Returns:
+            bool: True se a ordem foi editada com sucesso, False caso contrário.
+        """
+        if not hasattr(self, 'estado') or self.estado != "Em Execução":
+            print("Erro: O MRP não está em execução.")
+            return False
+
+        if material not in self.ordens_controle:
+            print(f"Erro: Material '{material}' não encontrado nas ordens de controle.")
+            return False
+
+        if tipo_ordem not in ['Produção', 'Aquisição']:
+            print(f"Erro: Tipo de ordem '{tipo_ordem}' inválido. Use 'Produção' ou 'Aquisição'.")
+            return False
+
+        if tipo_ordem not in self.ordens_controle[material]:
+            print(f"Erro: Não existe ordem de {tipo_ordem} para o material '{material}'.")
+            return False
+
+        # Verificar se a ordem já está pronta
+        if self.ordens_controle[material]['Status'] == 'Pronta':
+            print(f"Erro: Não é possível editar uma ordem que já está pronta.")
+            return False
+
+        # Salvar quantidade anterior para log
+        quantidade_anterior = self.ordens_controle[material][tipo_ordem]
+
+        # Atualizar a quantidade
+        self.ordens_controle[material][tipo_ordem] = nova_quantidade
+
+        # Atualizar o status para 'Planejada' se estava 'Executada'
+        if self.ordens_controle[material]['Status'] == 'Executada':
+            self.ordens_controle[material]['Status'] = 'Planejada'
+            print(f"Status da ordem para '{material}' atualizado para 'Planejada' devido à edição.")
+
+        print(f"Ordem de {tipo_ordem} para '{material}' editada: {quantidade_anterior} -> {nova_quantidade}")
+        return True
+
+    def cancelar_ordem(self, material):
+        """
+        Cancela uma ordem específica.
+
+        Args:
+            material (str): Código do material cuja ordem será cancelada.
+
+        Returns:
+            bool: True se a ordem foi cancelada com sucesso, False caso contrário.
+        """
+        if not hasattr(self, 'estado') or self.estado != "Em Execução":
+            print("Erro: O MRP não está em execução.")
+            return False
+
+        if material not in self.ordens_controle:
+            print(f"Erro: Material '{material}' não encontrado nas ordens de controle.")
+            return False
+
+        # Verificar se a ordem já está pronta
+        if self.ordens_controle[material]['Status'] == 'Pronta':
+            print(f"Erro: Não é possível cancelar uma ordem que já está pronta.")
+            return False
+
+        # Salvar informações para log
+        tipos_ordem = []
+        if 'Produção' in self.ordens_controle[material]:
+            tipos_ordem.append('Produção')
+        if 'Aquisição' in self.ordens_controle[material]:
+            tipos_ordem.append('Aquisição')
+
+        # Cancelar a ordem (zerar quantidades)
+        for tipo in tipos_ordem:
+            self.ordens_controle[material][tipo] = 0
+
+        # Atualizar o status para 'Planejada'
+        self.ordens_controle[material]['Status'] = 'Planejada'
+
+        print(f"Ordem para '{material}' cancelada. Quantidades zeradas e status definido como 'Planejada'.")
+        return True
+
     def atualizar_status_ordem(self, material, novo_status):
         """
         Atualiza o status de uma ordem específica.
@@ -510,6 +597,15 @@ class MRP:
             print(f"Erro: Status '{novo_status}' inválido. Use um dos seguintes: {', '.join(status_validos)}")
             return False
 
+        # Verificar se a ordem tem quantidades válidas
+        tem_producao = 'Produção' in self.ordens_controle[material] and self.ordens_controle[material]['Produção'] > 0
+        tem_aquisicao = 'Aquisição' in self.ordens_controle[material] and self.ordens_controle[material][
+            'Aquisição'] > 0
+
+        if not (tem_producao or tem_aquisicao):
+            print(f"Erro: Não é possível atualizar o status de uma ordem cancelada (quantidades zeradas).")
+            return False
+
         # Atualizar o status
         self.ordens_controle[material]['Status'] = novo_status
         print(f"Status da ordem para '{material}' atualizado para '{novo_status}'.")
@@ -517,16 +613,58 @@ class MRP:
         # Se o status for 'Pronta', atualizar o estoque
         if novo_status == 'Pronta':
             # Atualizar o estoque com base no tipo de ordem (Produção ou Aquisição)
-            if 'Produção' in self.ordens_controle[material]:
+            if 'Produção' in self.ordens_controle[material] and self.ordens_controle[material]['Produção'] > 0:
                 quantidade = self.ordens_controle[material]['Produção']
                 self.estoque[material]['em_estoque'] += quantidade
                 print(f"Estoque de '{material}' atualizado: +{quantidade} unidades (Produção)")
 
-            if 'Aquisição' in self.ordens_controle[material]:
+            if 'Aquisição' in self.ordens_controle[material] and self.ordens_controle[material]['Aquisição'] > 0:
                 quantidade = self.ordens_controle[material]['Aquisição']
                 self.estoque[material]['em_estoque'] += quantidade
                 print(f"Estoque de '{material}' atualizado: +{quantidade} unidades (Aquisição)")
 
+        return True
+
+    def listar_ordens_para_edicao(self):
+        """
+        Lista todas as ordens que podem ser editadas ou canceladas.
+
+        Returns:
+            bool: True se as ordens foram listadas com sucesso, False caso contrário.
+        """
+        if not hasattr(self, 'ordens_controle') or not self.ordens_controle:
+            print("Erro: Não há ordens de controle para listar.")
+            return False
+
+        from tabulate import tabulate
+
+        # Preparar os dados para a tabela
+        tabela = []
+        cabecalho = ["Material", "Estoque Atual", "Produção", "Aquisição", "Status", "Editável"]
+
+        for material, dados in self.ordens_controle.items():
+            estoque_atual = dados['Estoque Atual']
+            status = dados['Status']
+
+            producao = dados.get('Produção', 0)
+            aquisicao = dados.get('Aquisição', 0)
+
+            # Verificar se a ordem pode ser editada
+            editavel = "Não" if status == "Pronta" else "Sim"
+
+            linha = [
+                material,
+                estoque_atual,
+                producao if producao > 0 else "",
+                aquisicao if aquisicao > 0 else "",
+                status,
+                editavel
+            ]
+
+            tabela.append(linha)
+
+        # Imprimir a tabela
+        print(tabulate(tabela, headers=cabecalho, tablefmt="grid"))
         return True
 
     def listar_ordens_controle(self):
