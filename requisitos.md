@@ -3,7 +3,9 @@
 | VERSÃO | COMENTÁRIOS | RESPONSÁVEL | DATA |
 | :---: | ----- | ----- | ----- |
 | **1.0** | Versão inicial após prototipação | Rogério Atem | 07/03/2025 |
-| **1.01** | \-Versão para GitHub\-Correções na redação dos requisitos | Rogério Atem | 13/03/2025 |
+| **1.01** | \-Correções na redação dos requisitos | Rogério Atem | 22/03/2025 |
+| **1.02** | \-Modificação em alteração de ordens \-Correção na data do 1.01 (acima) | Rogério Atem | 23/03/2025 |
+| **1.1** | \-Modificação no requisito de cotações | Rogério Atem | 24/03/2025 |
 
 1) Trata-se do módulo de Materials Requirements Planning (MRP) de uma empresa que produz  dispositivos eletrônicos. Tal sistema servirá como base para uma versão mais complexa que levará em conta também os processos de produção, além dos materiais. Em termos de processo de negócio, o módulo MRP se baseia em quatro fases operacionais:  
    1) Inicialização;  
@@ -30,9 +32,9 @@
 5) Fase de Execução e Controle  
    1) Iniciada a execução, mudar o estado do MRP para Em Execução.  
    2) O dicionário ordens\_planejamento deve ser copiado para o dicionário ordens\_controle, que contém, além de todos os campos do anterior e a primeira coluna com os valores atuais de estoque e, para cada ordem, uma flag que diz que se uma ordem de um determinado produto ou componente está ainda como planejada, foi iniciada ou já está pronta. Planejada significa que a ordem ainda está aguardando ser executada, Executada que foi executada, mas o material (produto ou componente) ainda não está fisicamente disponível  e Pronta que o material está disponível na linha de produção ou para ser despachado.  
-   3) Os valores médios são substituídos, quando houverem, pelos valores obtidos das cotações, na planilha Cotacoes.xlsx. Quando não estiverem listados nesta planilha, são mantidos os médios. Toda vez que essa planilha for entrada durante o controle, os valores são atualizados por aqueles presentes nela.  
+   3) Os valores médios são substituídos, quando houverem, pelos valores obtidos das cotações, em planilha com nome passado por parâmetro. Os materiais que não estiverem listados nesta planilha, são mantidos os valores médios. Toda vez que uma planilha de cotações for entrada durante o controle, os valores são atualizados por aqueles presentes nela. Caso algum leadtime supere os leadtimes anteriores, usados no planejamento, emitir alerta para necessidade de replanejar. O mesmo acontece se algum valor for diferente do médio.  
    4) Deve possuir funcionalidade de listar em tela ou exportar para planilhas as ordens. A planilha com todas as ordens deve ser única, contendo como linhas o produto ou componente e colunas as quantidades a retirar do estoque, produzir (apenas produtos) ou adquirir (apenas componentes).  
-   5) Deve possuir funcionalidade de editar o dicionário de ordens, através de seleção de qual ordem a editar ou cancelar. Ao alterar quantidades de materiais, através da alteração ou cancelamento das ordens, dar a alterar o dicionário de estoque e dar opção de exportar o dicionário atualizado para planilha.  
+   5) Deve possuir funcionalidade de editar o dicionário de ordens, através de seleção de qual ordem a editar ou cancelar. Ao alterar quantidades de materiais, através da alteração ou cancelamento das ordens, alterar o dicionário de ordens.  
       1) Caso haja alteração de quantidades ou do leadtime do componente com maior leadtime, é necessário refazer as fases de inicialização e planejamento.  
    6) Após o ciclo de produção ser fechado, o MRP deve mudar seu estado para Encerrado.  
 6) Fase de Análise (Futuro):  

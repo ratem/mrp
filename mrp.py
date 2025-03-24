@@ -1,5 +1,6 @@
 import pandas as pd
 import os
+import openpyxl
 from openpyxl import load_workbook
 from datetime import datetime, timedelta
 
@@ -708,6 +709,297 @@ class MRP:
         print(tabulate(tabela, headers=cabecalho, tablefmt="grid"))
         return True
 
+
+    def listar_custos_materiais(self):
+        """
+        Lista os custos estimados de cada material e o custo total em formato tabular.
+
+        Returns:
+            float: Custo total estimado de todos os materiais.
+        """
+        if not hasattr(self, 'fc_lt_esperados') or not self.fc_lt_esperados:
+            print("Erro: Fluxo de caixa e lead times ainda não foram calculados.")
+            return None
+
+        from tabulate import tabulate
+
+        # Preparar os dados para a tabela
+        tabela = []
+        cabecalho = ["Material", "Tipo", "Quantidade", "Custo Estimado (R$)"]
+        custo_total = 0
+
+        for material, dados in self.fc_lt_esperados.items():
+            if 'Custo' in dados:
+                # Determinar o tipo (Produção ou Aquisição)
+                tipo = "Produção" if material in self.boms else "Aquisição"
+
+                # Obter a quantidade da ordem
+                quantidade = 0
+                if material in self.ordens_planejamento:
+                    if tipo == "Produção" and 'Produção' in self.ordens_planejamento[material]:
+                        quantidade = self.ordens_planejamento[material]['Produção']
+                    elif tipo == "Aquisição" and 'Aquisição' in self.ordens_planejamento[material]:
+                        quantidade = self.ordens_planejamento[material]['Aquisição']
+
+                # Adicionar à tabela
+                custo = dados['Custo']
+                tabela.append([material, tipo, quantidade, f"{custo:.2f}"])
+                custo_total += custo
+
+        # Adicionar linha de total
+        tabela.append(["TOTAL", "", "", f"{custo_total:.2f}"])
+
+        # Imprimir a tabela
+        print(tabulate(tabela, headers=cabecalho, tablefmt="grid"))
+
+        return custo_total
+
+
+    def exportar_custos_materiais(self, nome_arquivo):
+        """
+        Exporta os custos estimados de cada material e o custo total para uma planilha Excel.
+
+        Args:
+            nome_arquivo (str): Nome do arquivo Excel a ser criado.
+
+        Returns:
+            str: Caminho completo do arquivo Excel criado.
+        """
+        if not hasattr(self, 'fc_lt_esperados') or not self.fc_lt_esperados:
+            print("Erro: Fluxo de caixa e lead times ainda não foram calculados.")
+            return None
+
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+
+        # Criar um novo workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Custos Materiais"
+
+        # Definir cabeçalhos
+        cabecalhos = ["Material", "Tipo", "Quantidade", "Custo Estimado (R$)"]
+
+        # Adicionar cabeçalhos
+        for col_idx, header in enumerate(cabecalhos, 1):
+            ws.cell(row=1, column=col_idx, value=header)
+
+        # Preencher os dados
+        row_idx = 2
+        custo_total = 0
+
+        for material, dados in self.fc_lt_esperados.items():
+            if 'Custo' in dados:
+                # Determinar o tipo (Produção ou Aquisição)
+                tipo = "Produção" if material in self.boms else "Aquisição"
+
+                # Obter a quantidade da ordem
+                quantidade = 0
+                if material in self.ordens_planejamento:
+                    if tipo == "Produção" and 'Produção' in self.ordens_planejamento[material]:
+                        quantidade = self.ordens_planejamento[material]['Produção']
+                    elif tipo == "Aquisição" and 'Aquisição' in self.ordens_planejamento[material]:
+                        quantidade = self.ordens_planejamento[material]['Aquisição']
+
+                # Adicionar à planilha
+                ws.cell(row=row_idx, column=1, value=material)
+                ws.cell(row=row_idx, column=2, value=tipo)
+                ws.cell(row=row_idx, column=3, value=quantidade)
+
+                custo = dados['Custo']
+                ws.cell(row=row_idx, column=4, value=custo)
+                ws.cell(row=row_idx, column=4).number_format = '#,##0.00'
+
+                custo_total += custo
+                row_idx += 1
+
+        # Adicionar linha de total
+        ws.cell(row=row_idx, column=1, value="TOTAL")
+        ws.cell(row=row_idx, column=4, value=custo_total)
+        ws.cell(row=row_idx, column=4).number_format = '#,##0.00'
+
+        # Aplicar formatação
+        # Definir estilos
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="4F81BD", end_color="4F81BD", fill_type="solid")
+        header_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+
+        total_font = Font(bold=True)
+        total_fill = PatternFill(start_color="E6E6E6", end_color="E6E6E6", fill_type="solid")
+
+        border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+
+        # Aplicar estilo aos cabeçalhos
+        for col_idx in range(1, len(cabecalhos) + 1):
+            cell = ws.cell(row=1, column=col_idx)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_alignment
+            cell.border = border
+
+            # Ajustar largura da coluna
+            ws.column_dimensions[cell.column_letter].width = 18
+
+        # Aplicar estilo à linha de total
+        for col_idx in range(1, len(cabecalhos) + 1):
+            cell = ws.cell(row=row_idx, column=col_idx)
+            cell.font = total_font
+            cell.fill = total_fill
+            cell.border = border
+
+        # Aplicar bordas a todas as células com dados
+        for row in range(2, row_idx):
+            for col in range(1, len(cabecalhos) + 1):
+                cell = ws.cell(row=row, column=col)
+                cell.border = border
+
+                # Alinhar valores numéricos à direita
+                if col > 2:
+                    cell.alignment = Alignment(horizontal='right')
+
+        # Congelar a primeira linha
+        ws.freeze_panes = 'A2'
+
+        # Definir o caminho completo do arquivo
+        caminho_arquivo = os.path.join(self.pasta_arquivos, nome_arquivo)
+
+        # Salvar o arquivo
+        wb.save(caminho_arquivo)
+
+        print(f"Custos de materiais exportados com sucesso para: {caminho_arquivo}")
+        return caminho_arquivo
+
+    def atualizar_custos_leadtimes(self, nome_arquivo_cotacoes):
+        """
+        Atualiza os custos e leadtimes com base na planilha de cotações.
+
+        Args:
+            nome_arquivo_cotacoes (str): Nome do arquivo Excel com as cotações.
+
+        Returns:
+            tuple: (bool, list) - Sucesso da operação e lista de alertas.
+        """
+        alertas = []
+        caminho_arquivo = os.path.join(self.pasta_arquivos, nome_arquivo_cotacoes)
+
+        try:
+            # Carregar a planilha de cotações
+            wb = openpyxl.load_workbook(caminho_arquivo)
+            ws = wb.active
+
+            # Obter os cabeçalhos
+            headers = [cell.value for cell in ws[1]]
+
+            # Processar cada linha da planilha
+            for row in ws.iter_rows(min_row=2, values_only=True):
+                if not row[0]:  # Pular linhas vazias
+                    continue
+
+                material = row[0]
+
+                if material in self.estoque:
+                    # Mapear os valores da linha para um dicionário
+                    row_data = dict(zip(headers, row))
+
+                    # Atualizar custo unitário
+                    if 'Custo Unitario' in row_data and row_data['Custo Unitario'] is not None:
+                        custo_unitario = row_data['Custo Unitario']
+                        if custo_unitario != self.estoque[material]['custo_medio_unitario']:
+                            alerta = f"Custo de {material} alterado: {self.estoque[material]['custo_medio_unitario']} -> {custo_unitario}"
+                            alertas.append(alerta)
+                            self.estoque[material]['custo_medio_unitario'] = custo_unitario
+
+                    # Atualizar imposto unitário
+                    if 'Imposto Unitario' in row_data and row_data['Imposto Unitario'] is not None:
+                        imposto_unitario = row_data['Imposto Unitario']
+                        if imposto_unitario != self.estoque[material]['imposto_medio_unitario']:
+                            alertas.append(
+                                f"Imposto de {material} alterado: {self.estoque[material]['imposto_medio_unitario']} -> {imposto_unitario}")
+                            self.estoque[material]['imposto_medio_unitario'] = imposto_unitario
+
+                    # Atualizar frete por lote
+                    if 'Frete Lote' in row_data and row_data['Frete Lote'] is not None:
+                        frete_lote = row_data['Frete Lote']
+                        if frete_lote != self.estoque[material]['frete_medio_lote']:
+                            alertas.append(
+                                f"Frete de {material} alterado: {self.estoque[material]['frete_medio_lote']} -> {frete_lote}")
+                            self.estoque[material]['frete_medio_lote'] = frete_lote
+
+                    # Atualizar leadtime
+                    if 'Lead Time' in row_data and row_data['Lead Time'] is not None:
+                        lead_time = row_data['Lead Time']
+                        if lead_time > self.estoque[material]['leadtime_medio_lote']:
+                            alertas.append(
+                                f"Leadtime de {material} aumentou: {self.estoque[material]['leadtime_medio_lote']} -> {lead_time}")
+                            self.estoque[material]['leadtime_medio_lote'] = lead_time
+                            alertas.append("Necessidade de replanejar devido a aumento no leadtime.")
+                        elif lead_time != self.estoque[material]['leadtime_medio_lote']:
+                            alertas.append(
+                                f"Leadtime de {material} alterado: {self.estoque[material]['leadtime_medio_lote']} -> {lead_time}")
+                            self.estoque[material]['leadtime_medio_lote'] = lead_time
+
+            if alertas:
+                print("Alertas durante a atualização:")
+                for alerta in alertas:
+                    print(f"- {alerta}")
+
+            return True, alertas
+
+        except Exception as e:
+            print(f"Erro ao atualizar custos e leadtimes: {str(e)}")
+            return False, []
+
+    def recuperar_planejamento(self, nome_arquivo):
+        """
+        Recupera o planejamento de uma planilha Excel e o carrega no dicionário de planejamento.
+
+        Args:
+            nome_arquivo (str): Nome do arquivo Excel contendo o planejamento.
+
+        Returns:
+            bool: True se o planejamento foi recuperado com sucesso, False caso contrário.
+        """
+        import pandas as pd
+        from datetime import datetime
+
+        caminho_arquivo = os.path.join(self.pasta_arquivos, nome_arquivo)
+
+        try:
+            # Lê a planilha Excel
+            df = pd.read_excel(caminho_arquivo)
+
+            # Reinicializa o dicionário de planejamento
+            self.planejamento = {}
+
+            # Itera sobre as linhas do DataFrame
+            for _, row in df.iterrows():
+                material = row['Material']
+                self.planejamento[material] = {'Estoque Atual': row['Estoque Atual']}
+
+                # Adiciona as datas e quantidades ao dicionário
+                for col in df.columns:
+                    if col not in ['Material', 'Estoque Atual']:
+                        try:
+                            data = datetime.strptime(col, '%Y-%m-%d')
+                            quantidade = row[col]
+                            if pd.notna(quantidade):
+                                self.planejamento[material][col] = quantidade
+                        except ValueError:
+                            # Ignora colunas que não são datas
+                            pass
+
+            print(f"Planejamento recuperado com sucesso de: {caminho_arquivo}")
+            return True
+
+        except Exception as e:
+            print(f"Erro ao recuperar o planejamento: {str(e)}")
+            return False
+
     def planejar_producao(self, demanda):
         """
         Realiza o planejamento da produção com base na demanda e nos dados inicializados.
@@ -727,25 +1019,17 @@ class MRP:
         self.montar_quadro_planejamento()
         self.estado = "Planejado"
 
-    def executar_controle(self, cotações):
+    def executar_controle(self, cotacoes):
         """
         Executa e controla as ordens de produção e aquisição.
 
         Args:
-            cotações (dict): Dicionário contendo os valores atualizados dos materiais.
+            cotacoes (dict): Dicionário contendo os valores atualizados dos materiais.
         """
         if self.estado != "Planejado":
             print("Erro: O planejamento ainda não foi realizado.")
             return
-
-        # 1) Iniciada a execução, mudar o estado do MRP para Em Execução.
-        # 2) O dicionário ordens_planejamento deve ser copiado para o dicionário ordens_controle
-        # 3) Os valores médios são substituídos, quando houverem, pelos valores obtidos das cotações
-        # 4) Deve possuir funcionalidade de listar em tela ou exportar para planilhas as ordens.
-        # 5) Deve possuir funcionalidade de editar o dicionário de ordens
-        # 6) Após o ciclo de produção ser fechado, o MRP deve mudar seu estado para Encerrado.
-
-        self.estado = "Em Execução"
+        pass
 
     def analisar_resultados(self):
         """
@@ -754,8 +1038,4 @@ class MRP:
         if self.estado != "Encerrado":
             print("Erro: O ciclo de produção ainda não foi encerrado.")
             return
-
-        # 1) Ser capaz de ler N planilhas de MRP e mostrar insights como alterações em ordens de produção, atrasos, variação de custos, flutuação de estoque etc.
-        # 2) A análise é feita sobre ciclos encerrados ou em execução.
-        # 3) É interessante para o usuário manter na mesma pasta versões das planilhas, a medida que as ordens vão sendo executadas, para que seja possível ter um histórico da evolução da execução e aprimorar valores médios empregados, bem como detectar gargalos e outros problemas.
         pass

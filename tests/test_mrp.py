@@ -437,5 +437,133 @@ class TestMRPInicializacao(unittest.TestCase):
         resultado = self.mrp.atualizar_status_ordem(material, 'Pronta')
         self.assertFalse(resultado)
 
+    def criar_arquivo_cotacoes_teste(self):
+        """
+        Cria um arquivo de cotações de teste para ser usado nos testes.
+        """
+        from openpyxl import Workbook
+
+        # Criar arquivo Cotacoes.xlsx
+        workbook_cotacoes = Workbook()
+        sheet_cotacoes = workbook_cotacoes.active
+        sheet_cotacoes.append(["Material", "Custo Unitario", "Imposto Unitario", "Frete Lote", "Lead Time"])
+        sheet_cotacoes.append(["ETF", 70.0, 15.0, 0.0, 5])
+        sheet_cotacoes.append(["JOKER", 42.41, 47.68, 6.58, 15])
+        sheet_cotacoes.append(["DAQ", 17.19, 29.22, 11.46, 15])
+
+        # Salvar o arquivo
+        workbook_cotacoes.save(os.path.join(self.pasta_testes, "Cotacoes.xlsx"))
+
+    def test_atualizar_custos_leadtimes(self):
+        """
+        Testa a atualização de custos e leadtimes a partir da planilha de cotações.
+        """
+        # Define a demanda
+        demanda = {"ETI": 100, "ETF": 100}
+
+        # Inicializa os dados do MRP
+        self.mrp.inicializar_dados()
+
+        # Realiza o planejamento
+        self.mrp.planejar_producao(demanda)
+
+        # Inicia a execução
+        self.mrp.iniciar_execucao()
+
+        # Verifica se o estado mudou para Em Execução
+        self.assertEqual(self.mrp.estado, "Em Execução")
+
+        # Cria uma planilha de cotações de teste
+        self.criar_arquivo_cotacoes_teste()
+
+        # Salva os valores originais para comparação
+        joker_custo_original = self.mrp.estoque["JOKER"]["custo_medio_unitario"]
+        joker_leadtime_original = self.mrp.estoque["JOKER"]["leadtime_medio_lote"]
+        etf_custo_original = self.mrp.estoque["ETF"]["custo_medio_unitario"]
+
+        # Atualiza os custos e leadtimes
+        sucesso, alertas = self.mrp.atualizar_custos_leadtimes("Cotacoes.xlsx")
+
+        # Verifica se a atualização foi bem-sucedida
+        self.assertTrue(sucesso)
+
+        # Verifica se foram gerados alertas
+        self.assertTrue(len(alertas) > 0)
+
+        # Verifica se os valores foram atualizados corretamente
+        self.assertEqual(self.mrp.estoque["JOKER"]["custo_medio_unitario"], 42.41)
+        self.assertEqual(self.mrp.estoque["JOKER"]["leadtime_medio_lote"], 15)
+        self.assertEqual(self.mrp.estoque["ETF"]["custo_medio_unitario"], 70.0)
+
+        # Verifica se os alertas contêm as informações essenciais de forma mais flexível
+        # Em vez de verificar strings exatas, verificamos se os componentes essenciais estão presentes
+        self.assertTrue(any("Custo de JOKER" in alerta and "10" in alerta and "42.41" in alerta for alerta in alertas),
+                        "Alerta sobre alteração de custo do JOKER não encontrado")
+
+        self.assertTrue(any(
+            "Leadtime de JOKER" in alerta and str(joker_leadtime_original) in alerta and "15" in alerta for alerta in
+            alertas),
+                        "Alerta sobre alteração de leadtime do JOKER não encontrado")
+
+        self.assertTrue(any("Custo de ETF" in alerta and "100" in alerta and "70" in alerta for alerta in alertas),
+                        "Alerta sobre alteração de custo do ETF não encontrado")
+
+    def criar_arquivo_planejamento_teste(self):
+        """
+        Cria um arquivo de planejamento de teste para ser usado nos testes.
+        """
+        from openpyxl import Workbook
+
+        # Criar um novo workbook
+        wb = Workbook()
+        ws = wb.active
+
+        # Adicionar cabeçalhos
+        ws.append(["Material", "Estoque Atual", "2025-03-30", "2025-04-05"])
+
+        # Adicionar dados
+        ws.append(["ETF", 5, 100, 50])
+        ws.append(["JOKER", 10, 200, 100])
+        ws.append(["DAQ", 15, 300, 150])
+
+        # Salvar o arquivo
+        wb.save(os.path.join(self.pasta_testes, "Planejamento_teste.xlsx"))
+
+    def test_recuperar_planejamento(self):
+        """
+        Testa se o planejamento é recuperado corretamente de uma planilha Excel.
+        """
+        # Criar uma planilha de planejamento de teste
+        self.criar_arquivo_planejamento_teste()
+
+        # Recuperar o planejamento
+        resultado = self.mrp.recuperar_planejamento("Planejamento_teste.xlsx")
+
+        # Verificar se a recuperação foi bem-sucedida
+        self.assertTrue(resultado)
+
+        # Verificar se o dicionário de planejamento foi preenchido corretamente
+        planejamento = self.mrp.planejamento
+        self.assertIn("ETF", planejamento)
+        self.assertIn("JOKER", planejamento)
+        self.assertIn("DAQ", planejamento)
+
+        # Verificar os valores do estoque atual
+        self.assertEqual(planejamento["ETF"]["Estoque Atual"], 5)
+        self.assertEqual(planejamento["JOKER"]["Estoque Atual"], 10)
+        self.assertEqual(planejamento["DAQ"]["Estoque Atual"], 15)
+
+        # Verificar os valores das datas de entrega
+        self.assertEqual(planejamento["ETF"]["2025-03-30"], 100)
+        self.assertEqual(planejamento["ETF"]["2025-04-05"], 50)
+
+        self.assertEqual(planejamento["JOKER"]["2025-03-30"], 200)
+        self.assertEqual(planejamento["JOKER"]["2025-04-05"], 100)
+
+        self.assertEqual(planejamento["DAQ"]["2025-03-30"], 300)
+        self.assertEqual(planejamento["DAQ"]["2025-04-05"], 150)
+
+
+
 if __name__ == '__main__':
     unittest.main()
