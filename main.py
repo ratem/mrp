@@ -72,6 +72,9 @@ if __name__ == '__main__':
     # Realizar o planejamento
     mrp.planejar_producao(demanda)
 
+    # Listar o quadro de planejamento
+    mrp.imprimir_quadro_planejamento()
+
     # Exportar o quadro de planejamento inicial
     arquivo_planejamento_inicial = "planejamento_inicial.xlsx"
     mrp.exportar_quadro_planejamento(arquivo_planejamento_inicial)
