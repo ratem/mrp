@@ -215,3 +215,226 @@ class CRP:
         except Exception as e:
             print(f"Erro ao carregar as exceções de capacidade: {str(e)}")
             return False
+
+    def criar_planilha_crp(self, nome_arquivo, data_planejamento, numero_dias):
+        """
+        Cria uma planilha para o CRP com base nos dados de capacidade e demanda calculados anteriormente.
+
+        Args:
+            nome_arquivo (str): Nome do arquivo Excel a ser criado.
+            data_planejamento (str): Data inicial do planejamento (formato YYYY-MM-DD).
+            numero_dias (int): Número de dias para o planejamento.
+
+        Returns:
+            str: Caminho completo do arquivo Excel criado.
+        """
+        import openpyxl
+        from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+        from openpyxl.utils import get_column_letter
+        from openpyxl.worksheet.datavalidation import DataValidation
+        from datetime import datetime, timedelta
+
+        # Verificar se todos os dados necessários foram carregados
+        if not hasattr(self, 'capacidade_recursos') or not hasattr(self, 'demanda_recursos'):
+            print("Erro: Capacidade de recursos ou demanda por recursos não foram carregados.")
+            return None
+
+        # Identificar produtos finais (aqueles que estão na demanda_recursos)
+        produtos_finais = list(self.demanda_recursos.keys())
+
+        # Criar um novo workbook
+        wb = openpyxl.Workbook()
+
+        # Criar aba de demanda total
+        ws_demanda = wb.active
+        ws_demanda.title = "Demanda Total"
+
+        # Cabeçalhos da aba de demanda
+        cabecalhos_demanda = ["Produto", "Demanda Total", "Alocado", "Pendente"]
+
+        for col_num, cabecalho in enumerate(cabecalhos_demanda, 1):
+            cell = ws_demanda.cell(row=1, column=col_num, value=cabecalho)
+            cell.font = Font(bold=True)
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            cell.fill = PatternFill(start_color="D9EAD3", end_color="D9EAD3", fill_type="solid")
+
+        # Preencher dados de produtos finais e demanda total
+        linha_atual = 2
+        for produto in produtos_finais:
+            if produto in self.planejamento_mrp:
+                planejamento = self.planejamento_mrp[produto]
+                # Calcular demanda total
+                demanda_total = sum(quantidade for data, quantidade in planejamento.items()
+                                    if data != "Estoque Atual")
+
+                if demanda_total > 0:
+                    ws_demanda.cell(row=linha_atual, column=1, value=produto)
+                    ws_demanda.cell(row=linha_atual, column=2, value=demanda_total)
+
+                    # Fórmula para calcular o total alocado (será preenchida depois)
+                    ws_demanda.cell(row=linha_atual, column=3, value=0)
+
+                    # Fórmula para calcular o pendente
+                    ws_demanda.cell(row=linha_atual, column=4, value=f"=B{linha_atual}-C{linha_atual}")
+                    linha_atual += 1
+
+        # Ajustar largura das colunas
+        for col_num in range(1, len(cabecalhos_demanda) + 1):
+            ws_demanda.column_dimensions[get_column_letter(col_num)].width = 20
+
+        # Adicionar bordas
+        borda_fina = Border(left=Side(style='thin'), right=Side(style='thin'),
+                            top=Side(style='thin'), bottom=Side(style='thin'))
+        for row in ws_demanda[f"A1:D{linha_atual - 1}"]:
+            for cell in row:
+                cell.border = borda_fina
+
+        # Criar planilhas de alocação para cada dia
+        for dia in range(numero_dias):
+            data_atual = datetime.strptime(data_planejamento, '%Y-%m-%d') + timedelta(days=dia)
+            data_str = data_atual.strftime('%Y-%m-%d')
+            ws = wb.create_sheet(title=f"Alocação {data_str}")
+
+            # Cabeçalhos da planilha de alocação
+            cabecalhos = ["Produto", "Demanda Pendente", "Quantidade Alocada"]
+
+            for col_num, cabecalho in enumerate(cabecalhos, 1):
+                cell = ws.cell(row=1, column=col_num, value=cabecalho)
+                cell.font = Font(bold=True)
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+                cell.fill = PatternFill(start_color="D9EAD3", end_color="D9EAD3", fill_type="solid")
+
+            # Preencher dados de produtos finais e demanda
+            linha_atual = 2
+            for i, produto in enumerate(produtos_finais):
+                if produto in self.planejamento_mrp:
+                    produto_idx = i + 2  # +2 porque a linha 1 é cabeçalho
+                    ws.cell(row=linha_atual, column=1, value=produto)
+                    ws.cell(row=linha_atual, column=2, value=f"='Demanda Total'!D{produto_idx}")
+                    ws.cell(row=linha_atual, column=3, value=0)
+                    linha_atual += 1
+
+            # Adicionar validação de dados para "Quantidade Alocada"
+            dv = DataValidation(type="whole", operator="greaterThanOrEqual", formula1=0)
+            dv.error = "A quantidade alocada deve ser um número inteiro não negativo."
+            dv.errorTitle = "Entrada inválida"
+            ws.add_data_validation(dv)
+            dv.add(f"C2:C{linha_atual - 1}")
+
+            # Ajustar largura das colunas
+            for col_num in range(1, len(cabecalhos) + 1):
+                ws.column_dimensions[get_column_letter(col_num)].width = 20
+
+            # Adicionar bordas
+            for row in ws[f"A1:C{linha_atual - 1}"]:
+                for cell in row:
+                    cell.border = borda_fina
+
+            # Adicionar tabela de alocação de recursos para este dia
+            linha_recursos = linha_atual + 2
+            ws.cell(row=linha_recursos, column=1, value="Alocação de Recursos")
+            ws.cell(row=linha_recursos, column=1).font = Font(bold=True)
+
+            # Cabeçalhos da tabela de recursos
+            cabecalhos_recursos = ["Recurso", "Operação", "Capacidade Nominal", "Exceção",
+                                   "Capacidade Disponível", "Consumo", "% Utilização"]
+
+            for col_num, cabecalho in enumerate(cabecalhos_recursos, 1):
+                cell = ws.cell(row=linha_recursos + 1, column=col_num, value=cabecalho)
+                cell.font = Font(bold=True)
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+                cell.fill = PatternFill(start_color="FFD966", end_color="FFD966", fill_type="solid")
+
+            # Preencher dados de recursos
+            linha_atual_recursos = linha_recursos + 2
+            for recurso, operacoes in self.capacidade_recursos.items():
+                for operacao, capacidade_nominal in operacoes.items():
+                    if capacidade_nominal > 0:  # Só incluir operações que o recurso pode realizar
+                        # Verificar se há exceção para este recurso/operação nesta data
+                        excecao = 0
+                        if hasattr(self, 'excecoes_capacidade') and recurso in self.excecoes_capacidade:
+                            if operacao in self.excecoes_capacidade[recurso]:
+                                if data_str in self.excecoes_capacidade[recurso][operacao]:
+                                    excecao = self.excecoes_capacidade[recurso][operacao][data_str]
+
+                        # Calcular capacidade disponível
+                        capacidade_disponivel = max(0, capacidade_nominal - excecao)
+
+                        # Fórmula para calcular o consumo baseado nas quantidades alocadas
+                        formula_consumo = "="
+                        primeiro = True
+
+                        for i, produto in enumerate(produtos_finais):
+                            if produto in self.demanda_recursos and operacao in self.demanda_recursos[produto]:
+                                minutos_por_unidade = self.demanda_recursos[produto][operacao]
+                                # Encontrar a linha do produto na planilha de alocação
+                                produto_linha = i + 2  # +2 porque a linha 1 é cabeçalho
+                                if not primeiro:
+                                    formula_consumo += "+"
+                                formula_consumo += f"C{produto_linha}*{minutos_por_unidade}"
+                                primeiro = False
+
+                        if formula_consumo == "=":
+                            formula_consumo = "=0"
+
+                        ws.cell(row=linha_atual_recursos, column=1, value=recurso)
+                        ws.cell(row=linha_atual_recursos, column=2, value=operacao)
+                        ws.cell(row=linha_atual_recursos, column=3, value=capacidade_nominal)
+                        ws.cell(row=linha_atual_recursos, column=4, value=excecao)
+                        ws.cell(row=linha_atual_recursos, column=5, value=capacidade_disponivel)
+                        ws.cell(row=linha_atual_recursos, column=6, value=formula_consumo)
+                        ws.cell(row=linha_atual_recursos, column=7,
+                                value=f"=F{linha_atual_recursos}/E{linha_atual_recursos}")
+                        ws.cell(row=linha_atual_recursos, column=7).number_format = "0.00%"
+
+                        linha_atual_recursos += 1
+
+            # Ajustar largura das colunas
+            for col_num in range(1, len(cabecalhos_recursos) + 1):
+                ws.column_dimensions[get_column_letter(col_num)].width = 20
+
+            # Adicionar bordas
+            for row in ws[f"A{linha_recursos + 1}:G{linha_atual_recursos - 1}"]:
+                for cell in row:
+                    cell.border = borda_fina
+
+            # Adicionar formatação condicional para % Utilização
+            from openpyxl.formatting.rule import ColorScaleRule
+            color_scale = ColorScaleRule(start_type='num', start_value=0, start_color='00FF00',
+                                         mid_type='num', mid_value=0.7, mid_color='FFFF00',
+                                         end_type='num', end_value=1, end_color='FF0000')
+            ws.conditional_formatting.add(f"G{linha_recursos + 2}:G{linha_atual_recursos - 1}", color_scale)
+
+        # Agora que todas as abas foram criadas, adicionar fórmulas para atualizar a aba de Demanda Total
+        for i, produto in enumerate(produtos_finais):
+            if produto in self.planejamento_mrp:
+                produto_idx = i + 2  # +2 porque a linha 1 é cabeçalho
+
+                # Construir fórmula para somar todas as quantidades alocadas nas abas diárias
+                formula_alocado = "="
+                primeiro = True
+
+                for dia in range(numero_dias):
+                    data_atual = datetime.strptime(data_planejamento, '%Y-%m-%d') + timedelta(days=dia)
+                    data_str = data_atual.strftime('%Y-%m-%d')
+
+                    if not primeiro:
+                        formula_alocado += "+"
+                    formula_alocado += f"'Alocação {data_str}'!C{produto_idx}"
+                    primeiro = False
+
+                # Atualizar a célula com a fórmula
+                ws_demanda.cell(row=produto_idx, column=3, value=formula_alocado)
+
+        # Remover a planilha padrão criada pelo openpyxl se existir
+        if "Sheet" in wb.sheetnames:
+            wb.remove(wb["Sheet"])
+
+        # Definir o caminho completo do arquivo
+        caminho_arquivo = os.path.join(self.pasta_arquivos, nome_arquivo)
+
+        # Salvar o arquivo
+        wb.save(caminho_arquivo)
+
+        print(f"Planilha CRP criada com sucesso: {caminho_arquivo}")
+        return caminho_arquivo
