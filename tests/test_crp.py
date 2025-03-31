@@ -268,6 +268,52 @@ class TestCRPInicializacao(unittest.TestCase):
         self.assertEqual(self.crp.excecoes_capacidade["RE2"]["OP2"]["2025-03-27"], 30)
         self.assertEqual(self.crp.excecoes_capacidade["RE2"]["OP3"]["2025-03-28"], 180)
 
+    def test_criar_planilha_crp(self):
+        """
+        Testa se a planilha CRP é criada corretamente.
+        """
+        from datetime import datetime, timedelta
+        
+        # Criar arquivos necessários para o teste
+        self.criar_arquivo_planejamento_teste()
+        self.criar_arquivo_demanda_recursos_teste()
+        self.criar_arquivo_capacidade_recursos_teste()
+        self.criar_arquivo_excecoes_capacidade_teste()
+
+        # Carregar os dados necessários
+        self.crp.carregar_planejamento_mrp("planejamento_mrp.xlsx")
+        self.crp.carregar_demanda_recursos("demanda_recursos.xlsx")
+        self.crp.carregar_capacidade_recursos("capacidade_recursos.xlsx")
+        self.crp.carregar_excecoes_capacidade("excecoes_capacidade.xlsx")
+
+        # Definir data de planejamento e número de dias
+        data_planejamento = "2025-04-01"
+        numero_dias = 3
+
+        # Criar a planilha CRP
+        arquivo_crp = "crp_teste.xlsx"
+        caminho_crp = self.crp.criar_planilha_crp(arquivo_crp, data_planejamento, numero_dias)
+
+        # Verificar se o arquivo foi criado
+        self.assertTrue(os.path.exists(caminho_crp))
+
+        # Carregar o arquivo para verificar seu conteúdo
+        import openpyxl
+        wb = openpyxl.load_workbook(caminho_crp)
+
+        # Verificar se a aba de demanda total existe
+        self.assertIn("Demanda Total", wb.sheetnames)
+
+        # Verificar se as abas de alocação diária existem
+        for dia in range(numero_dias):
+            data_aba = (datetime.strptime(data_planejamento, '%Y-%m-%d') + timedelta(days=dia)).strftime('%Y-%m-%d')
+            nome_aba = f"Alocação {data_aba}"
+            self.assertIn(nome_aba, wb.sheetnames)
+
+        # Limpar o arquivo criado
+        wb.close()
+        os.remove(caminho_crp)
+
 
 if __name__ == '__main__':
     unittest.main()
