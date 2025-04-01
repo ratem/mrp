@@ -4,9 +4,9 @@ from mrp import MRP  # Importa a classe MRP
 from openpyxl import Workbook
 
 
-class TestMRPInicializacao(unittest.TestCase):
+class TestMRP(unittest.TestCase):
     """
-    Classe de teste para verificar a inicialização do MRP (carregamento das BOMs).
+    Classe de teste para o MRP.
     """
 
     def setUp(self):

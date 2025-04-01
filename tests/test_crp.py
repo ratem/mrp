@@ -5,9 +5,9 @@ from openpyxl import Workbook
 from crp import CRP
 
 
-class TestCRPInicializacao(unittest.TestCase):
+class TestCRP(unittest.TestCase):
     """
-    Classe de teste para verificar a inicialização do CRP.
+    Classe de teste do CRP.
     """
 
     def setUp(self):
