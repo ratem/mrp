@@ -273,7 +273,7 @@ class TestCRPInicializacao(unittest.TestCase):
         Testa se a planilha CRP é criada corretamente.
         """
         from datetime import datetime, timedelta
-        
+
         # Criar arquivos necessários para o teste
         self.criar_arquivo_planejamento_teste()
         self.criar_arquivo_demanda_recursos_teste()
