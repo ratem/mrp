@@ -70,7 +70,7 @@ class MRP_GUI:
                    command=self.carregar_excecoes_capacidade).grid(row=13, column=0, pady=5, padx=5, sticky=tk.W)
         ttk.Button(buttons_frame, text="Calcular Demanda por Operação",
                    command=self.calcular_demanda_por_operacao).grid(row=14, column=0, pady=5, padx=5, sticky=tk.W)
-        ttk.Button(buttons_frame, text="Criar Planilha CRP", command=self.criar_planilha_crp).grid(row=15, column=0,
+        ttk.Button(buttons_frame, text="Criar Planilha CRP", command=self.criar_planilha_crp_gui).grid(row=15, column=0,
                                                                                                    pady=5, padx=5,
                                                                                                    sticky=tk.W)
 
@@ -598,7 +598,7 @@ class MRP_GUI:
             row=3, column=0, pady=5, padx=5, sticky=tk.W)
         ttk.Button(main_frame, text="Calcular Demanda por Operação", command=self.calcular_demanda_por_operacao).grid(
             row=4, column=0, pady=5, padx=5, sticky=tk.W)
-        ttk.Button(main_frame, text="Criar Planilha CRP", command=self.criar_planilha_crp).grid(row=5, column=0, pady=5,
+        ttk.Button(main_frame, text="Criar Planilha CRP", command=self.criar_planilha_crp_gui).grid(row=5, column=0, pady=5,
                                                                                                 padx=5, sticky=tk.W)
         ttk.Button(main_frame, text="Fechar", command=crp_window.destroy).grid(row=6, column=0, pady=5, padx=5,
                                                                                sticky=tk.W)
