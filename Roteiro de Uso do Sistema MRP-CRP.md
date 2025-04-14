@@ -1,6 +1,7 @@
 # Roteiro de Uso do Sistema MRP-CRP
 
-O sistema integrado MRP-CRP implementado segue um fluxo de trabalho estruturado que combina o planejamento de necessidades de materiais (MRP) com o planejamento de capacidade de recursos (CRP). Este roteiro apresenta as fases principais e instruções detalhadas para utilização do sistema.
+O sistema integrado MRP-CRP implementado segue um fluxo de trabalho estruturado que combina o planejamento de necessidades de materiais (MRP) com o planejamento de capacidade de recursos (CRP). 
+Este roteiro apresenta as fases principais e instruções detalhadas para utilização do sistema.
 
 ## Fase 1: Inicialização do MRP
 
@@ -121,17 +122,17 @@ print("Arquivo de capacidade de recursos criado.")
 wb_excecoes = Workbook()
 ws_excecoes = wb_excecoes.active
 
-# Adicionar dados para RE1
+# Adicionar dados para RE1 - valores negativos representam reduções de capacidade
 ws_excecoes.append(["RE1", "OP1", "OP3"])
-ws_excecoes.append(["2025-04-01", 120, 120])  # Redução significativa no primeiro dia
-ws_excecoes.append(["2025-04-02", 60, 60])    # Redução média no segundo dia
-ws_excecoes.append(["2025-04-03", 30, 30])    # Redução pequena no terceiro dia
+ws_excecoes.append(["2025-04-01", -120, -120])  # Redução significativa no primeiro dia
+ws_excecoes.append(["2025-04-02", -60, -60])    # Redução média no segundo dia
+ws_excecoes.append(["2025-04-03", -30, -30])    # Redução pequena no terceiro dia
 
-# Adicionar dados para RE2
+# Adicionar dados para RE2 - valores negativos representam reduções de capacidade
 ws_excecoes.append(["RE2", "OP2", "OP3"])
-ws_excecoes.append(["2025-04-01", 30, 30])    # Redução pequena no primeiro dia
-ws_excecoes.append(["2025-04-02", 180, 180])  # Redução grande no segundo dia
-ws_excecoes.append(["2025-04-03", 90, 90])    # Redução média no terceiro dia
+ws_excecoes.append(["2025-04-01", -30, -30])    # Redução pequena no primeiro dia
+ws_excecoes.append(["2025-04-02", -180, -180])  # Redução grande no segundo dia
+ws_excecoes.append(["2025-04-03", -90, -90])    # Redução média no terceiro dia
 
 caminho_excecoes = os.path.join(pasta_ciclo_crp, "excecoes_capacidade.xlsx")
 wb_excecoes.save(caminho_excecoes)
@@ -283,6 +284,20 @@ print("- As planilhas geradas foram salvas para referência futura")
 print("\nCiclo integrado MRP-CRP concluído com sucesso!")
 ```
 
-Este roteiro fornece uma visão completa do fluxo de trabalho do sistema integrado MRP-CRP, desde a inicialização até a análise final. O código Python apresentado pode ser usado como base para implementar cada fase do processo.
+
+## Notas sobre Exceções de Capacidade
+
+No sistema CRP, as exceções de capacidade são tratadas da seguinte forma:
+
+- **Valores negativos** representam reduções de capacidade (ex: -120 significa redução de 120 minutos)
+- **Valores positivos** representam aumentos de capacidade (ex: 60 significa aumento de 60 minutos)
+
+Ao criar o arquivo de exceções de capacidade, certifique-se de usar valores negativos para indicar reduções na capacidade disponível, como mostrado no exemplo acima. A capacidade disponível é calculada como:
+
+```
+capacidade_disponivel = max(0, capacidade_nominal + excecao)
+```
+
+Onde `excecao` é negativa para reduções e positiva para aumentos de capacidade.
 
 

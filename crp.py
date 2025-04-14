@@ -357,8 +357,8 @@ class CRP:
                                 if data_str in self.excecoes_capacidade[recurso][operacao]:
                                     excecao = self.excecoes_capacidade[recurso][operacao][data_str]
 
-                        # Calcular capacidade disponível
-                        capacidade_disponivel = max(0, capacidade_nominal - excecao)
+                        # Calcular capacidade disponível -> valores negativos de exceção subtraem da capacidade nominal
+                        capacidade_disponivel = max(0, capacidade_nominal + excecao)
 
                         # Fórmula para calcular o consumo baseado nas quantidades alocadas
                         formula_consumo = "="
